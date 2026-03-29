@@ -1,57 +1,41 @@
-import axios from 'axios';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
-const api = axios.create({
-  baseURL: BASE_URL,
-  timeout: 10000,
-});
-
-// Attach JWT token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('smartiv_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
-// Handle 401 globally
-api.interceptors.response.use(
-  (r) => r,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('smartiv_token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(err);
-  }
-);
-
-// ── Auth ──────────────────────────────────────────────────────
-export const login = (email, password) =>
-  api.post('/api/auth/login', { email, password });
+async function apiFetch(path, options = {}) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
+  });
+  if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);
+  return res.json();
+}
 
 // ── Patients ─────────────────────────────────────────────────
-export const getPatients = () => api.get('/api/patients');
-export const getPatientLatest = (id) => api.get(`/api/patient/${id}/latest`);
-export const getPatientHistory = (id, from, to) =>
-  api.get(`/api/patient/${id}/history`, { params: { from, to } });
-export const getDrugImpact = (id) => api.get(`/api/patient/${id}/drug-impact`);
+export const getPatients = () => apiFetch('/api/patients');
+export const getPatientById = (id) => apiFetch(`/api/patients/${id}`);
+
+// ── Vitals ───────────────────────────────────────────────────
+export const getVitals = (patientId, limit = 30) =>
+  apiFetch(`/api/vitals/${patientId}?limit=${limit}`);
+
+// ── IV ───────────────────────────────────────────────────────
+export const getIV = (patientId) => apiFetch(`/api/iv/${patientId}`);
 
 // ── Alerts ───────────────────────────────────────────────────
-export const getActiveAlerts = () => api.get('/api/alerts?status=active');
-export const acknowledgeAlert = (id) => api.post(`/api/alerts/${id}/ack`);
+export const getAlerts = (patientId, resolved = false) => {
+  const params = new URLSearchParams();
+  if (patientId) params.set('patientId', patientId);
+  if (!resolved) params.set('resolved', 'false');
+  return apiFetch(`/api/alerts?${params.toString()}`);
+};
+
+export const resolveAlert = (id) =>
+  apiFetch(`/api/alerts/${id}/resolve`, { method: 'POST' });
 
 // ── Control ──────────────────────────────────────────────────
-export const controlValve = (patientId, state) =>
-  api.post('/api/control/valve', { patientId, state });
-export const controlFlow = (patientId, rate) =>
-  api.post('/api/control/flow', { patientId, rate });
+export const controlValve = (patientId, action) =>
+  apiFetch('/api/control/valve', {
+    method: 'POST',
+    body: JSON.stringify({ patientId, action }),
+  });
 
-// ── Logs ─────────────────────────────────────────────────────
-export const getLogs = (params) => api.get('/api/logs', { params });
-
-// ── Settings ─────────────────────────────────────────────────
-export const updateSettings = (patientId, data) =>
-  api.put(`/api/settings/${patientId}`, data);
-
-export default api;
+export default { getPatients, getPatientById, getVitals, getIV, getAlerts, resolveAlert, controlValve };

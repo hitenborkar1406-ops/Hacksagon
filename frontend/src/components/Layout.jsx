@@ -1,24 +1,26 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { MOCK_ALERTS } from '../utils/formatVitals';
-
-const MOCK_PATIENTS_SIDEBAR = [
-  { bed: 'Bed 4A', name: 'Rahul Sharma', status: 'stable' },
-  { bed: 'Bed 3B', name: 'Priya Nair', status: 'watch' },
-  { bed: 'Bed 7C', name: 'Kavya Reddy', status: 'critical' },
-];
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { usePatientContext } from '../context/PatientContext.jsx';
+import { useAlerts } from '../hooks/useAlerts.js';
 
 const NAV_LINKS = [
   { to: '/', label: 'Dashboard', icon: DashIcon, end: true },
   { to: '/vitals', label: 'Vitals', icon: VitalsIcon },
   { to: '/iv-monitor', label: 'IV Monitor', icon: IVIcon },
-  { to: '/camera', label: 'Camera', icon: CameraIcon },
   { to: '/alerts', label: 'Alerts', icon: BellIcon },
   { to: '/drug-report', label: 'Drug Report', icon: ReportIcon },
+  { to: '/camera', label: 'Camera', icon: CameraIcon },
 ];
 
-const unackedAlerts = MOCK_ALERTS.filter((a) => !a.acked).length;
-
 export default function Layout() {
+  const { patients, selectedPatientId, setSelectedPatientId } = usePatientContext();
+  const { unresolvedCount } = useAlerts(null); // global alerts count
+  const navigate = useNavigate();
+
+  function handlePatientClick(id) {
+    setSelectedPatientId(id);
+    navigate('/');
+  }
+
   return (
     <div className="app-shell">
       {/* ── Navbar ── */}
@@ -29,44 +31,57 @@ export default function Layout() {
         </div>
         <div className="navbar-right">
           <span className="navbar-ward">Ward 3B</span>
-          <div className="navbar-bell">
+          <div className="navbar-bell" onClick={() => navigate('/alerts')}>
             <BellIcon />
-            {unackedAlerts > 0 && (
-              <span className="navbar-bell-badge">{unackedAlerts}</span>
+            {unresolvedCount > 0 && (
+              <span className="navbar-bell-badge">{unresolvedCount}</span>
             )}
           </div>
-          <div className="navbar-avatar">DR</div>
+          <div className="navbar-avatar">Dr AM</div>
         </div>
       </nav>
 
       <div className="layout-body">
         {/* ── Sidebar ── */}
         <aside className="sidebar">
-          {/* Patient section */}
           <div className="sidebar-section-label">Patients</div>
-          {MOCK_PATIENTS_SIDEBAR.map((p, i) => (
-            <div
-              key={i}
-              className={`patient-row ${i === 0 ? 'selected' : ''}`}
-            >
-              <span className={`patient-dot ${p.status}`} />
-              <div className="patient-info">
-                <div className="patient-bed">{p.bed}</div>
-                <div className="patient-name truncate">{p.name}</div>
+          {patients.map((p) => {
+            const id = p._id?.toString?.() || p._id;
+            const status = (p.condition || 'Stable').toLowerCase();
+            const statusDot = status === 'critical' ? 'critical' : status === 'watch' ? 'watch' : 'stable';
+            const isSelected = id === selectedPatientId;
+            return (
+              <div
+                key={id}
+                className={`patient-row${isSelected ? ' selected' : ''}`}
+                onClick={() => handlePatientClick(id)}
+              >
+                <span className={`patient-dot ${statusDot}`} />
+                <div className="patient-info">
+                  <div className="patient-bed">{p.bedNumber}</div>
+                  <div className="patient-name truncate">{p.name}</div>
+                </div>
+                <span
+                  className="patient-status-label"
+                  style={{
+                    fontSize: 10,
+                    color:
+                      statusDot === 'critical'
+                        ? '#D93025'
+                        : statusDot === 'watch'
+                        ? '#F4A100'
+                        : '#2C7BE5',
+                  }}
+                >
+                  {p.condition || 'Stable'}
+                </span>
               </div>
-              <span className="patient-status-label" style={{
-                fontSize: 10,
-                color: p.status === 'critical' ? '#D93025' : p.status === 'watch' ? '#F4A100' : '#2C7BE5'
-              }}>
-                {p.status === 'critical' ? 'Critical' : p.status === 'watch' ? 'Watch' : 'Stable'}
-              </span>
-            </div>
-          ))}
+            );
+          })}
 
           <div className="sidebar-divider" />
           <div className="sidebar-section-label">Navigation</div>
 
-          {/* Nav links */}
           {NAV_LINKS.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
@@ -76,8 +91,8 @@ export default function Layout() {
             >
               <Icon />
               <span>{label}</span>
-              {label === 'Alerts' && unackedAlerts > 0 && (
-                <span className="nav-badge">{unackedAlerts}</span>
+              {label === 'Alerts' && unresolvedCount > 0 && (
+                <span className="nav-badge">{unresolvedCount}</span>
               )}
             </NavLink>
           ))}

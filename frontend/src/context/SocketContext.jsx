@@ -4,30 +4,27 @@ import { socket } from '../socket';
 const SocketContext = createContext(null);
 
 export function SocketProvider({ children }) {
-  const [connected, setConnected] = useState(false);
+  const [connected, setConnected] = useState(socket.connected);
   const [lastSync, setLastSync] = useState(null);
 
   useEffect(() => {
-    // Only attempt real WebSocket connection in non-demo mode
-    const token = localStorage.getItem('smartiv_token') || '';
-    const isDemo = token.startsWith('demo_jwt_token_');
+    const onConnect    = () => { setConnected(true);  setLastSync(new Date()); };
+    const onDisconnect = () =>   setConnected(false);
+    const onVitals     = () =>   setLastSync(new Date());
 
-    if (!isDemo) {
-      socket.connect();
-    }
+    socket.on('connect',     onConnect);
+    socket.on('disconnect',  onDisconnect);
+    socket.on('vitals_update', onVitals);
+    socket.on('vitals:new',    onVitals);
 
-    socket.on('connect', () => {
-      setConnected(true);
-      setLastSync(new Date());
-    });
-    socket.on('disconnect', () => setConnected(false));
-    socket.on('vitals', () => setLastSync(new Date()));
+    // Ensure connected
+    if (!socket.connected) socket.connect();
 
     return () => {
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('vitals');
-      socket.disconnect();
+      socket.off('connect',    onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('vitals_update', onVitals);
+      socket.off('vitals:new',    onVitals);
     };
   }, []);
 

@@ -1,24 +1,51 @@
 import { useState } from 'react';
-import { MOCK_ALERTS, severityLabel, relativeTime } from '../utils/formatVitals';
+import { useAlerts } from '../hooks/useAlerts.js';
+import { usePatientContext } from '../context/PatientContext.jsx';
 
-const TYPE_CONFIG = {
-  SPO2_LOW:    { cls: 'danger',  icon: '🩸' },
-  BACKFLOW:    { cls: 'danger',  icon: '🔴' },
-  HR_ABNORMAL: { cls: 'warning', icon: '💓' },
-  IV_STOPPED:  { cls: 'warning', icon: '⛔' },
+const SEVERITY_CONFIG = {
+  critical: { border: '#D93025', bg: '#FDECEA', label: 'CRITICAL', labelColor: '#9B2218' },
+  warning:  { border: '#F4A100', bg: '#FEF6E4', label: 'WARNING',  labelColor: '#7D5000' },
+  info:     { border: '#2C7BE5', bg: '#EBF3FD', label: 'INFO',     labelColor: '#1A4F9C' },
 };
 
+const FILTERS = ['All', 'Critical', 'Warning', 'Resolved'];
+
+function relativeTime(ts) {
+  if (!ts) return '--';
+  const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  return new Date(ts).toLocaleTimeString();
+}
+
 export default function Alerts() {
-  const [alerts, setAlerts] = useState(MOCK_ALERTS);
-  const unacked = alerts.filter(a => !a.acked).length;
+  const { selectedPatientId } = usePatientContext();
+  const { alerts, unresolvedCount, resolveAlert } = useAlerts(null); // null = all patients
+  const [activeFilter, setActiveFilter] = useState('All');
+  const [resolving, setResolving] = useState(null);
 
-  function ackAlert(id) {
-    setAlerts(prev => prev.map(a => a.id === id ? { ...a, acked: true } : a));
+  const filtered = alerts.filter(a => {
+    if (activeFilter === 'All')      return true;
+    if (activeFilter === 'Critical') return a.severity === 'critical';
+    if (activeFilter === 'Warning')  return a.severity === 'warning';
+    if (activeFilter === 'Resolved') return a.acknowledged || a.resolved;
+    return true;
+  });
+
+  // For unresolved list, separate active from resolved
+  const active   = filtered.filter(a => !a.acknowledged && !a.resolved);
+  const resolved = filtered.filter(a =>  a.acknowledged ||  a.resolved);
+  const display  = activeFilter === 'Resolved' ? resolved : [...active, ...resolved];
+
+  async function handleResolve(id) {
+    setResolving(id);
+    await resolveAlert(id);
+    setResolving(null);
   }
 
-  function ackAll() {
-    setAlerts(prev => prev.map(a => ({ ...a, acked: true })));
-  }
+  const criticalCount = alerts.filter(a => a.severity === 'critical' && !a.acknowledged).length;
+  const warningCount  = alerts.filter(a => a.severity === 'warning'  && !a.acknowledged).length;
+  const resolvedCount = alerts.filter(a => a.acknowledged || a.resolved).length;
 
   return (
     <div className="page-body">
@@ -26,28 +53,13 @@ export default function Alerts() {
         <div>
           <h1 className="page-title">Alert History</h1>
           <div className="page-breadcrumb">
-            {unacked > 0
-              ? `${unacked} unacknowledged alert${unacked > 1 ? 's' : ''} · Updating via Socket`
-              : 'All alerts acknowledged'}
+            {unresolvedCount > 0
+              ? `${unresolvedCount} unresolved alert${unresolvedCount > 1 ? 's' : ''} · Live via Socket.io`
+              : 'All alerts resolved'}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {unacked > 0 && (
-            <button
-              onClick={ackAll}
-              style={{
-                padding: '7px 16px', border: '1px solid var(--border)',
-                borderRadius: 4, fontSize: 13, cursor: 'pointer',
-                background: 'var(--bg-surface-alt)', color: 'var(--text-secondary)',
-                fontWeight: 500,
-              }}
-            >
-              Acknowledge All
-            </button>
-          )}
-          <div className="live-indicator">
-            <span className="live-dot" /> LIVE
-          </div>
+        <div className="live-indicator">
+          <span className="live-dot" /> LIVE
         </div>
       </div>
 
@@ -55,9 +67,9 @@ export default function Alerts() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
         {[
           { label: 'Total Alerts', val: alerts.length, color: 'var(--text-primary)' },
-          { label: 'Unacknowledged', val: unacked, color: 'var(--red)' },
-          { label: 'Critical', val: alerts.filter(a => ['SPO2_LOW', 'BACKFLOW'].includes(a.type)).length, color: 'var(--red-dark)' },
-          { label: 'This Hour', val: alerts.filter(a => (Date.now() - new Date(a.ts)) < 3600000).length, color: 'var(--blue)' },
+          { label: 'Unresolved',   val: unresolvedCount, color: 'var(--red)' },
+          { label: 'Critical',     val: criticalCount, color: 'var(--red-dark)' },
+          { label: 'Resolved',     val: resolvedCount, color: 'var(--blue)' },
         ].map(({ label, val, color }) => (
           <div key={label} className="card" style={{ padding: '16px 20px' }}>
             <div className="card-label">{label}</div>
@@ -66,42 +78,85 @@ export default function Alerts() {
         ))}
       </div>
 
+      {/* Filter pills */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {FILTERS.map(f => (
+          <button
+            key={f}
+            onClick={() => setActiveFilter(f)}
+            style={{
+              padding: '6px 14px', fontSize: 12, borderRadius: 20, cursor: 'pointer',
+              border: activeFilter === f ? '1px solid var(--blue)' : '1px solid var(--border)',
+              background: activeFilter === f ? 'var(--blue-bg)' : 'var(--bg-surface)',
+              color: activeFilter === f ? 'var(--blue-dark)' : 'var(--text-secondary)',
+              fontWeight: activeFilter === f ? 600 : 400,
+              transition: 'all 0.15s',
+            }}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
       {/* Alert list */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {alerts.length === 0 ? (
+        {display.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
-            No alerts on record.
+            No alerts in this category.
           </div>
         ) : (
-          alerts.map(a => {
-            const cfg = TYPE_CONFIG[a.type] || { cls: 'info', icon: '⚠' };
+          display.map((a) => {
+            const cfg = SEVERITY_CONFIG[a.severity] || SEVERITY_CONFIG.info;
+            const isResolved = a.acknowledged || a.resolved;
             return (
               <div
-                key={a.id}
-                className={`alert-card${!a.acked ? ' unread' : ''}`}
+                key={a._id}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 12,
+                  padding: '14px 20px',
+                  borderBottom: '1px solid var(--border)',
+                  borderLeft: `3px solid ${isResolved ? 'var(--border)' : cfg.border}`,
+                  background: isResolved ? 'var(--bg-surface)' : cfg.bg,
+                }}
               >
-                <div className={`alert-icon ${cfg.cls}`}>{cfg.icon}</div>
-                <div className="alert-content">
+                {/* Severity pill */}
+                <span style={{
+                  fontSize: 9, fontFamily: 'IBM Plex Mono', fontWeight: 700,
+                  padding: '2px 6px', borderRadius: 3,
+                  background: cfg.border, color: '#fff',
+                  whiteSpace: 'nowrap', marginTop: 2, flexShrink: 0,
+                }}>
+                  {cfg.label}
+                </span>
+
+                <div className="alert-content" style={{ flex: 1 }}>
                   <div className="alert-title">{a.message}</div>
                   <div className="alert-meta">
-                    {a.room} · {a.patientId} · {relativeTime(a.ts)}
+                    {a.type && <span style={{ marginRight: 8 }}>{a.type.replace(/_/g, ' ')}</span>}
+                    {a.patientId && <span style={{ marginRight: 8 }}>Patient: {a.patientId}</span>}
+                    {relativeTime(a.timestamp)}
                   </div>
                 </div>
-                {!a.acked && (
+
+                {!isResolved ? (
                   <button
-                    onClick={() => ackAlert(a.id)}
+                    onClick={() => handleResolve(a._id)}
+                    disabled={resolving === a._id}
                     style={{
-                      padding: '4px 10px', fontSize: 11,
-                      border: '1px solid var(--border)', borderRadius: 3,
-                      cursor: 'pointer', background: 'var(--bg-surface)',
-                      color: 'var(--text-secondary)', whiteSpace: 'nowrap',
+                      padding: '5px 12px', fontSize: 12,
+                      border: '1px solid var(--border)', borderRadius: 4,
+                      cursor: resolving === a._id ? 'not-allowed' : 'pointer',
+                      background: 'var(--bg-surface)', color: 'var(--text-secondary)',
+                      whiteSpace: 'nowrap', opacity: resolving === a._id ? 0.6 : 1,
+                      flexShrink: 0,
                     }}
                   >
-                    Ack
+                    {resolving === a._id ? '...' : 'Resolve'}
                   </button>
-                )}
-                {a.acked && (
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'IBM Plex Mono' }}>✓ Acked</span>
+                ) : (
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'IBM Plex Mono', flexShrink: 0 }}>
+                    ✓ Resolved
+                  </span>
                 )}
               </div>
             );

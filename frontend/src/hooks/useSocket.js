@@ -1,19 +1,26 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { socket } from '../socket';
 
-export function useVitals(patientId, onData) {
+/**
+ * useSocket()
+ * Returns { socket, connected }
+ * The socket instance is already connected (autoConnect: true in socket.js).
+ */
+export function useSocket() {
+  const [connected, setConnected] = useState(socket.connected);
+
   useEffect(() => {
-    if (!patientId) return;
-    const handler = (data) => onData(data);
-    socket.on(`vitals:${patientId}`, handler);
-    return () => socket.off(`vitals:${patientId}`, handler);
-  }, [patientId, onData]);
+    const onConnect    = () => setConnected(true);
+    const onDisconnect = () => setConnected(false);
+    socket.on('connect',    onConnect);
+    socket.on('disconnect', onDisconnect);
+    return () => {
+      socket.off('connect',    onConnect);
+      socket.off('disconnect', onDisconnect);
+    };
+  }, []);
+
+  return { socket, connected };
 }
 
-export function useAlerts(onAlert) {
-  useEffect(() => {
-    const handler = (data) => onAlert(data);
-    socket.on('alert', handler);
-    return () => socket.off('alert', handler);
-  }, [onAlert]);
-}
+export default useSocket;
