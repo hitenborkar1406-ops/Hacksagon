@@ -15,7 +15,7 @@ function fmtTime(ts) {
 
 export default function SessionTimeline({ session }) {
   if (!session) return null;
-  const { vitalsTimeline = [], startTime, drug, drugResponse } = session;
+  const { vitalsTimeline = [], drug, drugResponse } = session;
   if (!vitalsTimeline.length) {
     return <div className="timeline-empty">No vitals recorded for this session yet.</div>;
   }
@@ -28,7 +28,6 @@ export default function SessionTimeline({ session }) {
   }));
 
   // Calculate reference indices
-  const sessionStart = startTime ? new Date(startTime).getTime() : null;
   const drugTime = drug?.injectedAt ? new Date(drug.injectedAt).getTime() : null;
   const responseOnset = drugResponse?.responseOnsetMinutes;
 

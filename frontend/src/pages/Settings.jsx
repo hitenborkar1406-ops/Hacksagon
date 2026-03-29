@@ -29,7 +29,7 @@ export default function Settings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(thresholds),
       });
-    } catch (_) { /* mock */ }
+    } catch { /* mock */ }
     setTimeout(() => { setSaving(false); setSaved(true); }, 800);
   }
 

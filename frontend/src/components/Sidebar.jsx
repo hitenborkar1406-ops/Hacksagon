@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useSocketContext } from '../context/SocketContext';
+import { useSocketContext } from '../context/socketContext.js';
 import { LayoutDashboard, Users, Bell, ScrollText, Settings, Activity } from 'lucide-react';
 import { useState, useEffect } from 'react';
 

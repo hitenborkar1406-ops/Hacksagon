@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
@@ -49,7 +49,7 @@ export default function PatientDetail() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patientId: id, state: newState }),
       });
-    } catch (_) { /* mock */ }
+    } catch { /* mock */ }
     setValve(newState);
     setSaving(false);
   }
@@ -62,7 +62,7 @@ export default function PatientDetail() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patientId: id, rate: newRate }),
       });
-    } catch (_) { /* mock */ }
+    } catch { /* mock */ }
   }
 
   const sc = statusColor(patient.status);

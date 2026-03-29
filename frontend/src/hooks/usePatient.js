@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { PatientContext } from '../context/PatientContext.jsx';
+import { PatientContext } from '../context/patientContext.js';
 
 /**
  * usePatient()

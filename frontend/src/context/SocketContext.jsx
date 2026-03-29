@@ -1,7 +1,6 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { socket } from '../socket';
-
-const SocketContext = createContext(null);
+import { SocketContext } from './socketContext.js';
 
 export function SocketProvider({ children }) {
   const [connected, setConnected] = useState(socket.connected);
@@ -34,5 +33,3 @@ export function SocketProvider({ children }) {
     </SocketContext.Provider>
   );
 }
-
-export const useSocketContext = () => useContext(SocketContext);

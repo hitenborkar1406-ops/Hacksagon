@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { socket } from '../socket.js';
 import { getVitals } from '../api/index.js';
 
@@ -8,20 +8,34 @@ import { getVitals } from '../api/index.js';
  * Returns { vitals, latest, loading }
  */
 export function useVitals(patientId, maxPoints = 30) {
-  const [vitals, setVitals] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState({
+    loadedPatientId: null,
+    vitals: [],
+  });
 
   // Fetch initial history
   useEffect(() => {
     if (!patientId) return;
-    setLoading(true);
+    let cancelled = false;
     getVitals(patientId, maxPoints)
       .then((res) => {
+        if (cancelled) return;
         const list = (res?.data || res || []).slice().reverse(); // oldest→newest
-        setVitals(list);
+        setState({
+          loadedPatientId: patientId,
+          vitals: list,
+        });
       })
-      .catch(() => {}) // ignore — socket will populate
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (cancelled) return;
+        setState({
+          loadedPatientId: patientId,
+          vitals: [],
+        });
+      }); // ignore — socket will populate
+    return () => {
+      cancelled = true;
+    };
   }, [patientId, maxPoints]);
 
   // Subscribe to live updates
@@ -29,9 +43,13 @@ export function useVitals(patientId, maxPoints = 30) {
     if (!patientId) return;
     const handler = (data) => {
       if ((data.patientId?.toString?.() || data.patientId) !== patientId?.toString()) return;
-      setVitals((prev) => {
-        const next = [...prev, data];
-        return next.length > maxPoints ? next.slice(-maxPoints) : next;
+      setState((prev) => {
+        if (prev.loadedPatientId !== patientId) return prev;
+        const next = [...prev.vitals, data];
+        return {
+          ...prev,
+          vitals: next.length > maxPoints ? next.slice(-maxPoints) : next,
+        };
       });
     };
     socket.on('vitals_update', handler);
@@ -42,6 +60,8 @@ export function useVitals(patientId, maxPoints = 30) {
     };
   }, [patientId, maxPoints]);
 
+  const vitals = state.loadedPatientId === patientId ? state.vitals : [];
   const latest = vitals[vitals.length - 1] || null;
+  const loading = Boolean(patientId) && state.loadedPatientId !== patientId;
   return { vitals, latest, loading };
 }

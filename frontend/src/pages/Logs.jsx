@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { MOCK_PATIENTS, relativeTime } from '../utils/formatVitals';
+import { MOCK_PATIENTS } from '../utils/formatVitals';
 
 const EVENT_TYPES = ['ALL', 'SPO2_LOW', 'HR_ABNORMAL', 'IV_STOPPED', 'BACKFLOW', 'VALVE_CHANGE', 'FLOW_CHANGE'];
 

@@ -3,8 +3,6 @@ import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, ReferenceArea, Legend,
 } from 'recharts';
-import { generateDrugImpact } from '../utils/formatVitals';
-
 /* Generate SpO2 vs IV Rate data for the full drug report chart */
 function generateFullDrugReport() {
   return Array.from({ length: 121 }, (_, i) => {

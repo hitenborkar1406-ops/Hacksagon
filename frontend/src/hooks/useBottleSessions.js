@@ -8,39 +8,72 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
  * Fetches today's sessions on mount, subscribes to session:update.
  */
 export function useBottleSessions(patientId) {
-  const [sessions, setSessions] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [state, setState] = useState({
+    loadedPatientId: null,
+    sessions: [],
+    isRefreshing: false,
+  });
 
-  const fetchToday = useCallback(() => {
+  const fetchToday = useCallback(async ({ showLoading = true } = {}) => {
     if (!patientId) return;
-    setIsLoading(true);
-    fetch(`${API}/api/sessions/${patientId}/today`)
-      .then((r) => r.json())
-      .then((json) => {
-        if (json?.data) setSessions(json.data);
-      })
-      .catch(() => {})
-      .finally(() => setIsLoading(false));
+    if (showLoading) {
+      setState((prev) => ({ ...prev, isRefreshing: true }));
+    }
+
+    try {
+      const response = await fetch(`${API}/api/sessions/${patientId}/today`);
+      const json = await response.json();
+      setState({
+        loadedPatientId: patientId,
+        sessions: Array.isArray(json?.data) ? json.data : [],
+        isRefreshing: false,
+      });
+    } catch {
+      setState({
+        loadedPatientId: patientId,
+        sessions: [],
+        isRefreshing: false,
+      });
+    }
   }, [patientId]);
 
   useEffect(() => {
-    fetchToday();
+    if (!patientId) return;
+    queueMicrotask(() => {
+      void fetchToday({ showLoading: false });
+    });
 
     const onUpdate = ({ sessionId, vitalsTimeline }) => {
-      setSessions((prev) =>
-        prev.map((s) => {
-          const id = s._id?.toString?.() || s._id;
-          if (id !== sessionId) return s;
-          return { ...s, vitalsTimeline: [...(s.vitalsTimeline || []), vitalsTimeline] };
-        })
-      );
+      setState((prev) => {
+        if (prev.loadedPatientId !== patientId) return prev;
+        return {
+          ...prev,
+          sessions: prev.sessions.map((session) => {
+            const id = session._id?.toString?.() || session._id;
+            if (id !== sessionId) return session;
+            return {
+              ...session,
+              vitalsTimeline: [...(session.vitalsTimeline || []), vitalsTimeline],
+            };
+          }),
+        };
+      });
     };
 
     socket.on('session:update', onUpdate);
     return () => socket.off('session:update', onUpdate);
-  }, [fetchToday]);
+  }, [fetchToday, patientId]);
 
-  return { sessions, todaySessions: sessions, isLoading, refetch: fetchToday };
+  const sessions = state.loadedPatientId === patientId ? state.sessions : [];
+  const isLoading =
+    Boolean(patientId) && (state.loadedPatientId !== patientId || state.isRefreshing);
+
+  return {
+    sessions,
+    todaySessions: sessions,
+    isLoading,
+    refetch: () => fetchToday({ showLoading: true }),
+  };
 }
 
 export default useBottleSessions;

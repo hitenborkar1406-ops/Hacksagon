@@ -1,7 +1,6 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getPatients } from '../api/index.js';
-
-export const PatientContext = createContext(null);
+import { PatientContext } from './patientContext.js';
 
 const MOCK_PATIENTS = [
   { _id: 'p1', slug: 'rahul-sharma', name: 'Rahul Sharma', bedNumber: 'Bed 4A', age: 42, condition: 'Stable', ward: 'Ward 3B', assignedDoctor: 'Dr. Anjali Mehta', prescribedRate: 45 },
@@ -48,5 +47,3 @@ export function PatientProvider({ children }) {
     </PatientContext.Provider>
   );
 }
-
-export const usePatientContext = () => useContext(PatientContext);

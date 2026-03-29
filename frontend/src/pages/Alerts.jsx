@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useAlerts } from '../hooks/useAlerts.js';
-import { usePatientContext } from '../context/PatientContext.jsx';
 
 const SEVERITY_CONFIG = {
   critical: { border: '#D93025', bg: '#FDECEA', label: 'CRITICAL', labelColor: '#9B2218' },
@@ -19,7 +18,6 @@ function relativeTime(ts) {
 }
 
 export default function Alerts() {
-  const { selectedPatientId } = usePatientContext();
   const { alerts, unresolvedCount, resolveAlert } = useAlerts(null); // null = all patients
   const [activeFilter, setActiveFilter] = useState('All');
   const [resolving, setResolving] = useState(null);
@@ -44,7 +42,6 @@ export default function Alerts() {
   }
 
   const criticalCount = alerts.filter(a => a.severity === 'critical' && !a.acknowledged).length;
-  const warningCount  = alerts.filter(a => a.severity === 'warning'  && !a.acknowledged).length;
   const resolvedCount = alerts.filter(a => a.acknowledged || a.resolved).length;
 
   return (

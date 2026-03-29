@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { usePatientContext } from '../context/PatientContext.jsx';
+import { usePatientContext } from '../context/patientContext.js';
 import { useIV } from '../hooks/useIV.js';
 import { controlValve } from '../api/index.js';
 
 export default function IVMonitor() {
   const { selectedPatientId, selectedPatient } = usePatientContext();
-  const { ivData, loading } = useIV(selectedPatientId);
+  const { ivData } = useIV(selectedPatientId);
   const [valveLoading, setValveLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const [flowHistory, setFlowHistory] = useState(() =>

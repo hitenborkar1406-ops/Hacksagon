@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { usePatientContext } from '../context/PatientContext.jsx';
+import { usePatientContext } from '../context/patientContext.js';
 import { useVitals } from '../hooks/useVitals.js';
 import { useIV } from '../hooks/useIV.js';
 import { useAlerts } from '../hooks/useAlerts.js';
@@ -29,9 +29,17 @@ function formatTime(ts) {
   return new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
+function generateFallbackChartHistory() {
+  return Array.from({ length: 30 }, (_, i) => ({
+    t: i,
+    hr: 78 + Math.sin(i * 0.4) * 6 + Math.cos(i * 0.8) * 1.5,
+    spo2: 97 + Math.sin(i * 0.2) * 1.5 + Math.cos(i * 0.45) * 0.3,
+  }));
+}
+
 export default function Dashboard() {
   const { selectedPatientId, selectedPatient } = usePatientContext();
-  const { vitals, latest, loading: vitalsLoading } = useVitals(selectedPatientId);
+  const { vitals, latest } = useVitals(selectedPatientId);
   const { ivData } = useIV(selectedPatientId);
   const { alerts } = useAlerts(selectedPatientId);
   const { sessions: bottleSessions, refetch: refetchSessions } = useBottleSessions('rahul-sharma');
@@ -42,6 +50,7 @@ export default function Dashboard() {
   const [hrSpark, setHrSpark] = useState(() => genSparkline(78, 6));
   const [spo2Spark, setSpo2Spark] = useState(() => genSparkline(97, 1.5));
   const [drugData] = useState(generateDrugImpactMini);
+  const [fallbackChartHistory] = useState(generateFallbackChartHistory);
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -70,11 +79,7 @@ export default function Dashboard() {
   // Build chart history from accumulating socket vitals
   const chartHistory = vitals.length >= 2
     ? vitals.map((v, i) => ({ t: i, hr: v.heartRate, spo2: v.spo2, ts: v.timestamp }))
-    : Array.from({ length: 30 }, (_, i) => ({
-        t: i,
-        hr: 78 + Math.sin(i * 0.4) * 6 + (Math.random() - 0.5) * 3,
-        spo2: 97 + Math.sin(i * 0.2) * 1.5 + (Math.random() - 0.5) * 0.5,
-      }));
+    : fallbackChartHistory;
 
   const recentAlerts = alerts.slice(0, 3);
 
@@ -356,7 +361,10 @@ function AddDrugModal({ sessionId, onClose, onDone }) {
         body: JSON.stringify({ name, dosageMg: Number(dosageMg), injectedBy: 'Dr. Anjali Mehta' }),
       });
       onDone();
-    } catch (_) {}
+    } catch {
+      setSaving(false);
+      return;
+    }
     setSaving(false);
   }
 
@@ -397,7 +405,10 @@ function BottleSessionRow({ session, refetch, vitals }) {
     try {
       await fetch(`${API}/api/sessions/${id}/end`, { method: 'POST' });
       refetch();
-    } catch (_) {}
+    } catch {
+      setEnding(false);
+      return;
+    }
     setEnding(false);
   }
 

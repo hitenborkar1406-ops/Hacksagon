@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { usePatientContext } from '../context/PatientContext.jsx';
+import { usePatientContext } from '../context/patientContext.js';
 import { useAlerts } from '../hooks/useAlerts.js';
 import { useAuth } from '../hooks/useAuth.js';
 
@@ -125,20 +125,23 @@ export default function Layout() {
           <div className="sidebar-divider" />
           <div className="sidebar-section-label">Navigation</div>
 
-          {NAV_LINKS.map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-            >
-              <Icon />
-              <span>{label}</span>
-              {label === 'Alerts' && unresolvedCount > 0 && (
-                <span className="nav-badge">{unresolvedCount}</span>
-              )}
-            </NavLink>
-          ))}
+          {NAV_LINKS.map((link) => {
+            const NavIcon = link.icon;
+            return (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.end}
+                className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+              >
+                <NavIcon />
+                <span>{link.label}</span>
+                {link.label === 'Alerts' && unresolvedCount > 0 && (
+                  <span className="nav-badge">{unresolvedCount}</span>
+                )}
+              </NavLink>
+            );
+          })}
         </aside>
 
         {/* ── Page content ── */}

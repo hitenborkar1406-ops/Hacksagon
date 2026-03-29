@@ -162,7 +162,6 @@
     for (let i = 0; i < 40; i++) {
       pts.push(18 + (alert ? Math.random() * 28 - 8 : Math.random() * 12 - 6));
     }
-    let frame = 0;
 
     function draw() {
       ctx.clearRect(0, 0, c.width, c.height);
@@ -180,7 +179,6 @@
       ctx.shadowBlur = 3;
       ctx.stroke();
       ctx.shadowBlur = 0;
-      frame++;
       setTimeout(() => requestAnimationFrame(draw), 80);
     }
     draw();
@@ -215,7 +213,7 @@
 
     if (height) canvas.height = height;
 
-    const chart = new Chart(canvas, {
+    const chart = new window.Chart(canvas, {
       type: 'line',
       data: {
         labels,
@@ -328,8 +326,7 @@
       },
     });
 
-    // Draw infusion start annotation manually after chart renders
-    chart.options.plugins.afterDraw = undefined;
+    setTimeout(() => drawInfusionLine(chart), 1600);
     return chart;
   }
 
@@ -374,7 +371,6 @@
   ---------------------------------------------------------- */
   let drugChartBuilt = false;
   let dashChartBuilt = false;
-  let annotShown = false;
 
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {

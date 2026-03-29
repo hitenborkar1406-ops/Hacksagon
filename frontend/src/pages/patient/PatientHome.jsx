@@ -26,17 +26,23 @@ const STATUS_PILL = {
 };
 
 function LastUpdated({ latest }) {
-  const [mins, setMins] = useState(0);
+  const [nowTs, setNowTs] = useState(0);
+  const timestamp = latest?.timestamp;
+
   useEffect(() => {
-    const ts = latest?.timestamp;
-    if (!ts) return;
+    if (!timestamp) return;
+    queueMicrotask(() => {
+      setNowTs(Date.now());
+    });
     const interval = setInterval(() => {
-      setMins(Math.floor((Date.now() - new Date(ts).getTime()) / 60000));
+      setNowTs(Date.now());
     }, 30000);
-    setMins(Math.floor((Date.now() - new Date(ts).getTime()) / 60000));
     return () => clearInterval(interval);
-  }, [latest]);
-  if (!latest) return null;
+  }, [timestamp]);
+
+  if (!timestamp || nowTs === 0) return null;
+
+  const mins = Math.floor((nowTs - new Date(timestamp).getTime()) / 60000);
   return <div className="last-updated">Last updated {mins === 0 ? 'just now' : `${mins} min ago`}</div>;
 }
 

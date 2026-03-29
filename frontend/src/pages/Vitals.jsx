@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { usePatientContext } from '../context/PatientContext.jsx';
+import { usePatientContext } from '../context/patientContext.js';
 import { useVitals } from '../hooks/useVitals.js';
 
 export default function Vitals() {
   const { selectedPatientId, selectedPatient } = usePatientContext();
-  const { vitals, latest, loading } = useVitals(selectedPatientId);
+  const { vitals, latest } = useVitals(selectedPatientId);
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
