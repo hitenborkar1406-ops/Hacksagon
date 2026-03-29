@@ -1,0 +1,12 @@
+[build]
+  # Build only the React/Vite app (Netlify should not build from repo root).
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  # SPA routes -> index.html
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
