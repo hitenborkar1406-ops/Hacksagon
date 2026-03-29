@@ -4,6 +4,17 @@ import { useAuth } from '../hooks/useAuth.js';
 
 const API = import.meta.env.VITE_API_URL || '';
 
+// Demo credentials for offline / deployed demo mode (no backend required)
+const DEMO_USERS = [
+  { email: 'staff@hospital.local', password: 'demo123', token: 'demo-staff-token', user: { id: 'demo_staff', email: 'staff@hospital.local', name: 'Clinical Staff', role: 'staff', patientSlug: null } },
+  { email: 'family@hospital.local', password: 'demo123', token: 'demo-family-token', user: { id: 'demo_fam', email: 'family@hospital.local', name: 'Family Member', role: 'family', patientSlug: 'rahul-sharma' } },
+];
+
+function tryDemoLogin(email, password) {
+  const match = DEMO_USERS.find(u => u.email === email.toLowerCase() && u.password === password);
+  return match || null;
+}
+
 export default function Login() {
   const nav = useNavigate();
   const loc = useLocation();
@@ -21,28 +32,50 @@ export default function Login() {
       return;
     }
     setLoading(true);
+
+    // Try real backend first, fall back to demo credentials
+    let data = null;
+    let ok = false;
+
     try {
       const res = await fetch(`${API}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Login failed');
-
-      login(data.token, data.user);
-      const dest = loc.state?.from;
-      if (data.user.role === 'family') {
-        nav(`/patient/${data.user.patientSlug || 'rahul-sharma'}`, { replace: true });
-      } else if (dest && dest !== '/login') {
-        nav(dest, { replace: true });
-      } else {
-        nav('/', { replace: true });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.token) {
+        data = json;
+        ok = true;
       }
-    } catch (err) {
-      setError(err.message || 'Login failed.');
-    } finally {
-      setLoading(false);
+    } catch {
+      // Backend unreachable — will try demo fallback below
+    }
+
+    if (!ok) {
+      // Offline / demo fallback
+      const demo = tryDemoLogin(email, password);
+      if (demo) {
+        data = demo;
+        ok = true;
+      }
+    }
+
+    setLoading(false);
+
+    if (!ok || !data) {
+      setError('Invalid email or password.');
+      return;
+    }
+
+    login(data.token, data.user);
+    const dest = loc.state?.from;
+    if (data.user.role === 'family') {
+      nav(`/patient/${data.user.patientSlug || 'rahul-sharma'}`, { replace: true });
+    } else if (dest && dest !== '/login') {
+      nav(dest, { replace: true });
+    } else {
+      nav('/', { replace: true });
     }
   }
 
