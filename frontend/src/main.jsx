@@ -5,14 +5,17 @@ import './index.css';
 import App from './App.jsx';
 import { PatientProvider } from './context/PatientContext.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
+import { PlanProvider } from './context/PlanContext.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <PatientProvider>
-          <App />
-        </PatientProvider>
+        <PlanProvider>
+          <PatientProvider>
+            <App />
+          </PatientProvider>
+        </PlanProvider>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,

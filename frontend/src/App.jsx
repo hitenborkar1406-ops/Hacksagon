@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
-import PatientGate from './components/PatientGate';
 import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedPatientRoute from './components/patient/ProtectedPatientRoute';
 import Dashboard from './pages/Dashboard';
 import Vitals from './pages/Vitals';
 import IVMonitor from './pages/IVMonitor';
@@ -11,7 +11,9 @@ import DrugReport from './pages/DrugReport';
 import NotFound from './pages/NotFound';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import PatientLogin from './pages/patient/PatientLogin';
 
+import PatientLayout from './components/PatientLayout';
 import PatientHome from './pages/patient/PatientHome';
 import TodaySessions from './pages/patient/TodaySessions';
 import BottleReport from './pages/patient/BottleReport';
@@ -24,6 +26,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
+      {/* Doctor clinical dashboard — staff auth required */}
       <Route
         path="/"
         element={
@@ -40,7 +43,18 @@ export default function App() {
         <Route path="drug-report" element={<DrugReport />} />
       </Route>
 
-      <Route path="/patient/:patientId" element={<PatientGate />}>
+      {/* Patient/family portal — unprotected login entry */}
+      <Route path="/patient/login" element={<PatientLogin />} />
+
+      {/* Patient/family routes — plan session required */}
+      <Route
+        path="/patient/:patientId"
+        element={
+          <ProtectedPatientRoute>
+            <PatientLayout />
+          </ProtectedPatientRoute>
+        }
+      >
         <Route index element={<PatientHome />} />
         <Route path="today" element={<TodaySessions />} />
         <Route path="bottle/:sessionId" element={<BottleReport />} />

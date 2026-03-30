@@ -1734,3 +1734,321 @@ a { color: inherit; text-decoration: none; }
 .btn-primary:hover { background: var(--blue-dark); }
 .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
 .login-demo-hint { margin-top: 32px; padding: 12px; background: var(--bg-surface-alt); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); text-align: center; }
+
+/* ============================================================
+   PATIENT LOGIN PAGE
+============================================================ */
+.patient-login-page {
+  min-height: 100vh;
+  background: #F4F6F8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+.patient-login-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E6EA;
+  border-radius: 12px;
+  padding: 40px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.patient-login-brand {
+  text-align: center;
+  margin-bottom: 20px;
+}
+.patient-login-logo {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1A1D23;
+  letter-spacing: -0.02em;
+}
+.patient-login-logo span {
+  color: #2C7BE5;
+}
+.patient-login-subtitle {
+  font-size: 12px;
+  color: #8A97A4;
+  margin-top: 4px;
+}
+.patient-login-divider {
+  height: 1px;
+  background: #E2E6EA;
+  margin: 0 0 24px;
+}
+.patient-login-heading {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1A1D23;
+  text-align: center;
+  margin-bottom: 10px;
+}
+.patient-login-subtext {
+  font-size: 13px;
+  color: #52606D;
+  text-align: center;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+.patient-code-input {
+  width: 100%;
+  height: 48px;
+  border: 1px solid #E2E6EA;
+  border-radius: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 18px;
+  letter-spacing: 0.15em;
+  text-align: center;
+  text-transform: uppercase;
+  padding: 0 14px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  color: #1A1D23;
+  box-sizing: border-box;
+  display: block;
+  margin-bottom: 14px;
+}
+.patient-code-input:focus {
+  border-color: #2C7BE5;
+  box-shadow: 0 0 0 3px #EBF3FD;
+}
+.patient-login-btn {
+  width: 100%;
+  height: 48px;
+  background: #2C7BE5;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s;
+}
+.patient-login-btn:hover:not(:disabled) { background: #1A4F9C; }
+.patient-login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.patient-login-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: #D93025;
+  font-size: 13px;
+  margin-top: 12px;
+  animation: slideDown 0.2s ease;
+  line-height: 1.45;
+}
+.patient-login-help {
+  font-size: 11px;
+  color: #8A97A4;
+  text-align: center;
+  margin-top: 20px;
+  line-height: 1.4;
+}
+.patient-login-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 12px 0;
+}
+.patient-login-success-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1A1D23;
+}
+.patient-login-success-name {
+  font-size: 14px;
+  color: #52606D;
+}
+.patient-login-redirect-text {
+  font-size: 12px;
+  color: #8A97A4;
+  animation: pulse 1s infinite;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ============================================================
+   PLAN BADGE PILL  (shared: navbar, bottle report, login, dashboard)
+============================================================ */
+.plan-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+.plan-badge-pill.basic {
+  background: #F0F2F5;
+  color: #52606D;
+  border: 1px solid #E2E6EA;
+}
+.plan-badge-pill.premium {
+  background: #EBF3FD;
+  color: #1A4F9C;
+  border: 0.5px solid #2C7BE5;
+}
+
+/* ============================================================
+   PREMIUM UPGRADE CARD  (inline lock gate)
+============================================================ */
+.premium-upgrade-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #FFFFFF;
+  border: 1px solid #E2E6EA;
+  border-radius: 8px;
+  padding: 16px 18px;
+  margin: 4px 0;
+}
+.premium-lock-icon { flex-shrink: 0; margin-top: 2px; }
+.premium-upgrade-content { flex: 1; }
+.premium-upgrade-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1A1D23;
+  margin-bottom: 4px;
+}
+.premium-upgrade-text {
+  font-size: 12px;
+  color: #52606D;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   BOTTLE CARD — BASIC PLAN PILL
+============================================================ */
+.bottle-card-basic-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  color: #52606D;
+  background: #F0F2F5;
+  border: 1px solid #E2E6EA;
+  padding: 4px 10px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+/* ============================================================
+   GENERATE CODE MODAL
+============================================================ */
+.gen-radio-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.gen-radio-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #E2E6EA;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-weight: 500;
+  color: #52606D;
+}
+.gen-radio-pill input { display: none; }
+.gen-radio-pill.active {
+  border-color: #2C7BE5;
+  background: #EBF3FD;
+  color: #1A4F9C;
+}
+.gen-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+.gen-code-label {
+  font-size: 12px;
+  color: #8A97A4;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.gen-code-display {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #1A1D23;
+}
+.gen-warning {
+  font-size: 12px;
+  color: #D93025;
+  background: #FEF3F2;
+  border: 1px solid #FECDD3;
+  border-radius: 6px;
+  padding: 8px 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.gen-instruction {
+  font-size: 12px;
+  color: #52606D;
+}
+.gen-error {
+  color: #D93025;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+/* ============================================================
+   ACCESS CODE ROW  (doctor dashboard)
+============================================================ */
+.access-code-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-bottom: 1px solid #F0F2F5;
+}
+.access-code-row:last-of-type { border-bottom: none; }
+.access-code-mono {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: #1A1D23;
+  flex-shrink: 0;
+}
+.access-code-provides {
+  font-size: 11px;
+  color: #8A97A4;
+  flex: 1;
+  min-width: 160px;
+}
+.access-code-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}

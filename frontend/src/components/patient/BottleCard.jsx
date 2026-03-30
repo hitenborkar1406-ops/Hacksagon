@@ -49,7 +49,7 @@ function formatTimeRange(start, end) {
   return '';
 }
 
-export default function BottleCard({ session, patientId }) {
+export default function BottleCard({ session, patientId, isPremium = false }) {
   if (!session) return null;
   const { _id, bottleNumber, status, startTime, endTime, drug, drugResponse } = session;
   const id = _id?.toString?.() || _id;
@@ -73,7 +73,7 @@ export default function BottleCard({ session, patientId }) {
           <div className="bottle-card-upcoming">Not yet started</div>
         )}
 
-        {hasDrug && (
+        {hasDrug && isPremium && (
           <>
             <div className="bottle-card-drug-pill">
               💊 {drug.name} given{injectedAt ? ` at ${injectedAt}` : ''}
@@ -85,6 +85,10 @@ export default function BottleCard({ session, patientId }) {
               </>
             )}
           </>
+        )}
+
+        {hasDrug && !isPremium && (
+          <div className="bottle-card-basic-pill">Treatment details available in Premium Plan</div>
         )}
 
         {!hasDrug && status !== 'ongoing' && status !== 'upcoming' && (

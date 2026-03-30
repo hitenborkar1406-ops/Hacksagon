@@ -6,6 +6,9 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import SessionTimeline from '../../components/patient/SessionTimeline';
 import DrugResponseSummary from '../../components/patient/DrugResponseSummary';
+import PlanGate from '../../components/patient/PlanGate.jsx';
+import PremiumUpgradeCard from '../../components/patient/PremiumUpgradeCard.jsx';
+import { usePlan } from '../../hooks/usePlan.js';
 import { generateBottleSummary } from '../../utils/insightGenerator';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -45,6 +48,7 @@ export default function BottleReport() {
   if (loading) return <div className="patient-page"><div className="patient-loading">Loading report...</div></div>;
   if (!session) return <div className="patient-page"><div className="patient-loading">Session not found.</div></div>;
 
+  const { isBasic } = usePlan();
   const summary = generateBottleSummary({ ...session, patientName: 'Rahul' });
 
   return (
@@ -72,28 +76,41 @@ export default function BottleReport() {
       </div>
 
       {/* Medication Response */}
-      {session.drug?.name && session.drug.name !== 'null' && (
-        <div className="patient-section">
-          <div className="patient-section-title">Medication Response</div>
-          <DrugResponseSummary session={session} />
-        </div>
-      )}
+      <PlanGate
+        requiredPlan="premium"
+        fallback={
+          <div className="patient-section">
+            <div className="patient-section-title">Medication</div>
+            <div className="bottle-card-no-drug">Medication was administered during this session.</div>
+            <PremiumUpgradeCard message="Full drug response details are available on the Premium Plan. Ask your doctor to upgrade your access." />
+          </div>
+        }
+      >
+        {session.drug?.name && session.drug.name !== 'null' && (
+          <div className="patient-section">
+            <div className="patient-section-title">Medication Response</div>
+            <DrugResponseSummary session={session} />
+          </div>
+        )}
+      </PlanGate>
 
       {/* Doctor's Notes */}
-      {session.doctorNotes && (
-        <div className="patient-section">
-          <div className="doctor-notes-card">
-            <div className="doctor-notes-header">
-              <span className="doctor-notes-icon">🩺</span>
-              <span className="doctor-notes-title">Doctor's Notes</span>
+      <PlanGate requiredPlan="premium">
+        {session.doctorNotes && (
+          <div className="patient-section">
+            <div className="doctor-notes-card">
+              <div className="doctor-notes-header">
+                <span className="doctor-notes-icon">🩺</span>
+                <span className="doctor-notes-title">Doctor's Notes</span>
+              </div>
+              <div className="doctor-notes-body">{session.doctorNotes}</div>
+              {session.drug?.injectedBy && (
+                <div className="doctor-notes-by">Added by {session.drug.injectedBy}</div>
+              )}
             </div>
-            <div className="doctor-notes-body">{session.doctorNotes}</div>
-            {session.drug?.injectedBy && (
-              <div className="doctor-notes-by">Added by {session.drug.injectedBy}</div>
-            )}
           </div>
-        </div>
-      )}
+        )}
+      </PlanGate>
 
       <div className="patient-section">
         <Link to={`/patient/${patientId}/export`} className="btn btn-ghost">Export This Report</Link>

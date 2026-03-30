@@ -6,6 +6,8 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import ExportCard from '../../components/patient/ExportCard';
 import ConsentModal from '../../components/patient/ConsentModal';
+import PremiumUpgradeCard from '../../components/patient/PremiumUpgradeCard.jsx';
+import { usePlan } from '../../hooks/usePlan.js';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -13,6 +15,7 @@ const PHARMACIES = ['Apollo Pharmacy', 'MedPlus', 'Wellness Forever', 'Local Pha
 
 export default function ExportPanel() {
   const { patientId = 'rahul-sharma' } = useParams();
+  const { isBasic } = usePlan();
   const [sessions, setSessions] = useState([]);
   const [familyOn, setFamilyOn] = useState(true);
   const [researchOn, setResearchOn] = useState(false);
@@ -55,6 +58,20 @@ export default function ExportPanel() {
   function handleDownload(format) {
     if (!latestId) return alert('No session available to export.');
     window.open(`${API}/api/sessions/${latestId}/export?format=${format}`, '_blank');
+  }
+
+  if (isBasic) {
+    return (
+      <div className="patient-page">
+        <div className="patient-page-back">
+          <Link to={`/patient/${patientId}`} className="btn-text">← Back</Link>
+        </div>
+        <div className="patient-header">
+          <div className="patient-name-large" style={{ fontSize: 20 }}>Export &amp; Share</div>
+        </div>
+        <PremiumUpgradeCard message="Export &amp; sharing is available on the Premium Plan. Ask your doctor or nursing staff to upgrade your access." />
+      </div>
+    );
   }
 
   return (

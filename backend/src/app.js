@@ -13,9 +13,11 @@ import sessionsRoutes from './routes/sessions.js';
 import insightsRoutes from './routes/insights.js';
 import aiProxyRoutes from './routes/aiProxy.js';
 import authRoutes from './routes/authRoutes.js';
+import patientAccessRoutes from './routes/patientAccess.js';
 import { seedPatients } from './controllers/patientController.js';
 import { seedAuthUsers } from './controllers/authController.js';
 import { seedBottleSessions } from './services/seedService.js';
+import { seedAccessCodes } from './controllers/patientAccessController.js';
 import { startSimulator, registerPatients } from './services/simulatorService.js';
 
 dotenv.config();
@@ -42,6 +44,7 @@ app.use('/api/iv', controlRoutes);
 app.use('/api/insights', insightsRoutes);
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/analyze-frame', aiProxyRoutes);
+app.use('/api/patient-access', patientAccessRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'vitaflow-backend', port });
@@ -69,6 +72,12 @@ app.get('/health', (_req, res) => {
     await seedAuthUsers();
   } catch (e) {
     console.warn('Auth user seed:', e.message);
+  }
+
+  try {
+    await seedAccessCodes();
+  } catch (e) {
+    console.warn('Access code seed:', e.message);
   }
 
   // Start simulator only in development

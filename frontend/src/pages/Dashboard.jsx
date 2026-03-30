@@ -8,6 +8,7 @@ import { useVitals } from '../hooks/useVitals.js';
 import { useIV } from '../hooks/useIV.js';
 import { useAlerts } from '../hooks/useAlerts.js';
 import { useBottleSessions } from '../hooks/useBottleSessions.js';
+import GenerateCodeModal from '../components/patient/GenerateCodeModal.jsx';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -333,6 +334,9 @@ export default function Dashboard() {
           })}
         </div>
       </div>
+
+      {/* -- Family Access Codes -- */}
+      <FamilyAccessCodesCard />
     </div>
   );
 }
@@ -387,6 +391,9 @@ function AddDrugModal({ sessionId, onClose, onDone }) {
           </button>
         </div>
       </div>
+
+      {/* -- Family Access Codes -- */}
+      <FamilyAccessCodesCard />
     </div>
   );
 }
@@ -454,5 +461,92 @@ function BottleSessionRow({ session, refetch, vitals }) {
       <div className="bottle-slot-num">Bottle {bottleNumber}</div>
       <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Not started</span>
     </div>
+  );
+}
+
+/* ── FamilyAccessCodesCard ── */
+function FamilyAccessCodesCard() {
+  const [codes, setCodes] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [copiedCode, setCopiedCode] = useState('');
+
+  const PATIENT_ID = 'rahul-sharma';
+
+  useEffect(() => {
+    fetch(`${API}/api/patient-access/${PATIENT_ID}`)
+      .then((r) => r.json())
+      .then((json) => { if (json?.data) setCodes(json.data); })
+      .catch(() => {});
+  }, [showModal]);
+
+  function handleCopy(code) {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(''), 2000);
+    });
+  }
+
+  async function handleRevoke(accessCode) {
+    await fetch(`${API}/api/patient-access/${accessCode}/deactivate`, { method: 'PUT' });
+    setCodes((prev) => prev.map((c) => c.accessCode === accessCode ? { ...c, isActive: false } : c));
+  }
+
+  const active = codes.filter((c) => c.isActive);
+
+  return (
+    <>
+      {showModal && (
+        <GenerateCodeModal
+          patientId={PATIENT_ID}
+          patientName="Rahul Sharma"
+          bedNumber="Bed 4A"
+          onClose={() => setShowModal(false)}
+        />
+      )}
+      <div className="card" style={{ marginTop: 20 }}>
+        <div className="card-label" style={{ marginBottom: 12 }}>PATIENT PORTAL ACCESS
+          <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 8 }}>Family Access Codes</span>
+        </div>
+        {active.length === 0 && (
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>No active access codes.</div>
+        )}
+        {active.map((rec) => (
+          <div key={rec.accessCode} className="access-code-row">
+            <span className={`plan-badge-pill ${rec.plan === 'premium' ? 'premium' : 'basic'}`}>
+              {rec.plan === 'premium' ? 'Premium Plan ★' : 'Basic Plan'}
+            </span>
+            <span className="access-code-mono">{rec.accessCode}</span>
+            <div className="access-code-provides">
+              {rec.plan === 'basic'
+                ? 'Provides: Heart Rate, SpO₂, IV Monitor, Camera'
+                : 'Provides: All Basic + Drug Curves, Response Data, Export'}
+            </div>
+            <div className="access-code-actions">
+              <button
+                className="btn btn-ghost"
+                style={{ padding: '3px 10px', fontSize: 12 }}
+                onClick={() => handleCopy(rec.accessCode)}
+              >
+                {copiedCode === rec.accessCode ? '✓ Copied' : 'Copy'}
+              </button>
+              <button
+                className="btn"
+                style={{ padding: '3px 10px', fontSize: 12, border: '1px solid #D93025', color: '#D93025', background: 'none', marginLeft: 6 }}
+                onClick={() => handleRevoke(rec.accessCode)}
+              >
+                Revoke
+              </button>
+            </div>
+          </div>
+        ))}
+        <button
+          className="btn btn-primary"
+          style={{ marginTop: 14, fontSize: 13, padding: '7px 16px' }}
+          onClick={() => setShowModal(true)}
+        >
+          Generate New Code
+        </button>
+      </div>
+    </>
   );
 }

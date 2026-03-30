@@ -1,30 +1,42 @@
 /**
- * PatientLayout.jsx — shell for patient/family view (PRD §13).
+ * PatientLayout.jsx — shell for patient/family view with plan badge support.
  */
 import { Outlet, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
+import { usePlan } from '../hooks/usePlan.js';
 
 const DEFAULT_SLUG = 'rahul-sharma';
+
+function PlanBadgePill({ plan }) {
+  if (!plan) return null;
+  return (
+    <span className={`plan-badge-pill ${plan === 'premium' ? 'premium' : 'basic'}`}>
+      {plan === 'premium' ? 'Premium ★' : 'Basic'}
+    </span>
+  );
+}
 
 function ViewSwitcher() {
   const navigate = useNavigate();
   const loc = useLocation();
   const { user } = useAuth();
+  const { isAuthenticated, patientInfo } = usePlan();
   const isPatient = loc.pathname.startsWith('/patient');
 
   function switchView(view) {
     localStorage.setItem('vitaflow_view', view);
     if (view === 'patient') {
-      const slug = user?.role === 'family' ? user.patientSlug || DEFAULT_SLUG : DEFAULT_SLUG;
-      navigate(`/patient/${slug}`);
+      if (isAuthenticated && patientInfo?.patientId) {
+        navigate(`/patient/${patientInfo.patientId}`);
+      } else {
+        navigate('/patient/login');
+      }
     } else {
       navigate('/');
     }
   }
 
-  if (user?.role === 'family') {
-    return null;
-  }
+  if (user?.role === 'family') return null;
 
   return (
     <div className="view-switcher">
@@ -41,7 +53,20 @@ function ViewSwitcher() {
 export default function PatientLayout() {
   const navigate = useNavigate();
   const { patientId = DEFAULT_SLUG } = useParams();
-  const { logout, user } = useAuth();
+  const { logout: staffLogout } = useAuth();
+  const { isAuthenticated, plan, patientInfo, logout: planLogout } = usePlan();
+
+  function handleSignOut() {
+    if (isAuthenticated) {
+      planLogout();
+      navigate('/patient/login');
+    } else {
+      staffLogout();
+      navigate('/login');
+    }
+  }
+
+  const displayName = patientInfo?.patientName || '';
 
   return (
     <div className="patient-shell">
@@ -54,16 +79,16 @@ export default function PatientLayout() {
           VitaFlow <span style={{ fontWeight: 400, color: 'var(--clinical-muted, #52606D)' }}>Family</span>
         </button>
         <ViewSwitcher />
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{user?.name}</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isAuthenticated && displayName && (
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{displayName}</span>
+          )}
+          {isAuthenticated && <PlanBadgePill plan={plan} />}
           <button
             type="button"
             className="btn-text"
             style={{ fontSize: 13 }}
-            onClick={() => {
-              logout();
-              navigate('/login');
-            }}
+            onClick={handleSignOut}
           >
             Sign out
           </button>

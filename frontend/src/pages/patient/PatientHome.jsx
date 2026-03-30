@@ -18,6 +18,8 @@ import PatientDrugCurveSection from '../../components/patient/PatientDrugCurveSe
 import PatientAlertsStrip from '../../components/patient/PatientAlertsStrip';
 import PatientIVVisionBar from '../../components/patient/PatientIVVisionBar';
 import { getOverallStatus } from '../../utils/insightGenerator';
+import { usePlan } from '../../hooks/usePlan.js';
+import PlanGate from '../../components/patient/PlanGate.jsx';
 
 const STATUS_PILL = {
   normal: 'status-pill-large normal',
@@ -100,6 +102,8 @@ export default function PatientHome() {
   const paddedSessions = padSessions(sessions);
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const chartData = vitalsToChartData(vitals);
+  const { isPremium } = usePlan();
+
 
   const hr = latest?.heartRate;
   const spo2 = latest?.spo2;
@@ -165,7 +169,9 @@ export default function PatientHome() {
       </div>
 
       <div className="patient-prd-split">
-        <PatientDrugCurveSection rawInsight={rawInsight} />
+        <PlanGate requiredPlan="premium">
+          <PatientDrugCurveSection rawInsight={rawInsight} />
+        </PlanGate>
         <PatientAlertsStrip alerts={alerts} />
       </div>
 
@@ -193,7 +199,7 @@ export default function PatientHome() {
                 </div>
               </div>
             ) : (
-              <BottleCard key={s._id || i} session={s} patientId={patientId} />
+              <BottleCard key={s._id || i} session={s} patientId={patientId} isPremium={isPremium} />
             )
           )}
         </div>
