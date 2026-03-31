@@ -44,7 +44,7 @@ export default function Layout() {
       {/* ── Navbar ── */}
       <nav className="navbar">
         <div className="navbar-left">
-          <span className="navbar-brand">VitaFlow AI</span>
+          <span className="navbar-brand">IV DRIP SYSTEM</span>
           <span className="navbar-live-dot" />
         </div>
         <div className="navbar-right">

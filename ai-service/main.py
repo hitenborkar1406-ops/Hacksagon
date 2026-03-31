@@ -1,5 +1,5 @@
 """
-VitaFlow AI Service — OpenCV IV Vision Pipeline
+IV DRIP SYSTEM Service — OpenCV IV Vision Pipeline
 POST /analyze-frame  →  { status: "normal"|"backflow"|"empty"|"air_detected"|"error" }
 Never returns 4xx/5xx (PRD FR-AI07).
 """
@@ -9,7 +9,7 @@ import cv2
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 
-app = FastAPI(title="VitaFlow AI Service", version="1.0.0")
+app = FastAPI(title="IV DRIP SYSTEM Service", version="1.0.0")
 
 
 @app.get("/health")

@@ -6,7 +6,7 @@ export default function NotFound() {
       <div className="not-found-code">404</div>
       <h1 className="not-found-title">Page Not Found</h1>
       <p className="not-found-sub">
-        The route you requested doesn't exist in VitaFlow AI. 
+        The route you requested doesn't exist in IV DRIP SYSTEM. 
         Check the URL or return to dashboard.
       </p>
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>

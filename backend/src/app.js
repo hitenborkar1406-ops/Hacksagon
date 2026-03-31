@@ -96,7 +96,7 @@ app.get('/health', (_req, res) => {
   }
 
   server.listen(port, () => {
-    console.log(`VitaFlow AI backend running on http://localhost:${port}`);
+    console.log(`IV DRIP SYSTEM backend running on http://localhost:${port}`);
     console.log(`CORS origins: ${corsOrigins.join(', ')}`);
   });
 })();

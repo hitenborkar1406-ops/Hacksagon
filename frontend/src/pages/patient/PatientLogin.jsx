@@ -61,7 +61,7 @@ export default function PatientLogin() {
           <>
             {/* Branding */}
             <div className="patient-login-brand">
-              <div className="patient-login-logo">VitaFlow <span>AI</span></div>
+              <div className="patient-login-logo">IV DRIP SYSTEM</div>
               <div className="patient-login-subtitle">Patient &amp; Family Portal</div>
             </div>
             <div className="patient-login-divider" />
