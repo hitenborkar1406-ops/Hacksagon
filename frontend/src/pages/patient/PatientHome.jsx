@@ -20,6 +20,7 @@ import PatientIVVisionBar from '../../components/patient/PatientIVVisionBar';
 import { getOverallStatus } from '../../utils/insightGenerator';
 import { usePlan } from '../../hooks/usePlan.js';
 import PlanGate from '../../components/patient/PlanGate.jsx';
+import PlanBanner from '../../components/patient/PlanBanner.jsx';
 
 const STATUS_PILL = {
   normal: 'status-pill-large normal',
@@ -132,6 +133,12 @@ export default function PatientHome() {
       </div>
 
       <InsightBanner insight={insight} isLoading={insightLoading} />
+
+      {/* Plan Feature Section */}
+      <div className="patient-section">
+        <div className="patient-section-title">Your Plan &amp; Features</div>
+        <PlanBanner />
+      </div>
 
       <div className="patient-prd-grid-top">
         <div className="patient-prd-stat">

@@ -2052,3 +2052,151 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   flex-shrink: 0;
 }
+
+/* ============================================================
+   PLAN BANNER  (patient view — Basic / Premium comparison)
+============================================================ */
+.plan-banner-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 4px;
+}
+@media (max-width: 600px) {
+  .plan-banner-wrap {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Base card */
+.plan-tier-card {
+  border-radius: 12px;
+  padding: 20px;
+  border: 2px solid transparent;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  background: var(--bg-surface, #fff);
+}
+.plan-tier-inactive {
+  border-color: #E2E6EA;
+  opacity: 0.72;
+}
+.plan-tier-active {
+  border-color: #2C7BE5;
+  box-shadow: 0 4px 20px rgba(44, 123, 229, 0.12);
+}
+.plan-tier-active.premium-active {
+  border-color: #F4A100;
+  box-shadow: 0 4px 20px rgba(244, 161, 0, 0.14);
+  background: linear-gradient(135deg, #fff 60%, #FFF9ED 100%);
+}
+
+/* Header row */
+.plan-tier-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.plan-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.basic-badge {
+  background: #F0F2F5;
+  color: #52606D;
+  border: 1px solid #CDD2D8;
+}
+.premium-badge {
+  background: linear-gradient(90deg, #FFF3CD, #FDEAB0);
+  color: #92600A;
+  border: 1px solid #F4A100;
+}
+.plan-tier-current-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: #27A96C;
+  background: #E6F6F0;
+  border: 1px solid #B7DFC8;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* Description */
+.plan-tier-desc {
+  font-size: 12px;
+  color: #8A97A4;
+  margin: 0 0 14px;
+  line-height: 1.4;
+}
+
+/* Feature list */
+.plan-feature-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.plan-feature-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #3C4753;
+}
+.plan-feature-item.included {
+  color: #27A96C;
+  font-weight: 500;
+}
+.plan-feature-item.premium-highlight {
+  color: #92600A;
+  font-weight: 600;
+}
+.plan-feature-item.locked-feature {
+  color: #B0B9C4;
+}
+.plan-feature-icon {
+  font-size: 14px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Upgrade note */
+.plan-upgrade-note {
+  margin-top: 16px;
+  padding: 10px 12px;
+  background: #F0F2F5;
+  border: 1px dashed #CDD2D8;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #52606D;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* gen-plan-pill inside GenerateCodeModal */
+.gen-plan-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.gen-plan-pill[data-plan="basic"] {
+  background: #F0F2F5;
+  color: #52606D;
+  border: 1px solid #CDD2D8;
+}
+.gen-plan-pill[data-plan="premium"] {
+  background: #FFF3CD;
+  color: #92600A;
+  border: 1px solid #F4A100;
+}

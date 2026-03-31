@@ -10,7 +10,7 @@ import { useAlerts } from '../hooks/useAlerts.js';
 import { useBottleSessions } from '../hooks/useBottleSessions.js';
 import GenerateCodeModal from '../components/patient/GenerateCodeModal.jsx';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Use relative paths — all requests proxied through Vite (dev) or same origin (prod).
 
 /* ── Local mock helpers (used only when backend is unavailable) ── */
 function genSparkline(base, range, count = 8) {
@@ -359,7 +359,7 @@ function AddDrugModal({ sessionId, onClose, onDone }) {
     if (!name) return;
     setSaving(true);
     try {
-      await fetch(`${API}/api/sessions/${sessionId}/inject-drug`, {
+      await fetch(`/api/sessions/${sessionId}/inject-drug`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, dosageMg: Number(dosageMg), injectedBy: 'Dr. Anjali Mehta' }),
@@ -410,7 +410,7 @@ function BottleSessionRow({ session, refetch, vitals }) {
   async function handleEnd() {
     setEnding(true);
     try {
-      await fetch(`${API}/api/sessions/${id}/end`, { method: 'POST' });
+      await fetch(`/api/sessions/${id}/end`, { method: 'POST' });
       refetch();
     } catch {
       setEnding(false);
@@ -473,7 +473,7 @@ function FamilyAccessCodesCard() {
   const PATIENT_ID = 'rahul-sharma';
 
   useEffect(() => {
-    fetch(`${API}/api/patient-access/${PATIENT_ID}`)
+    fetch(`/api/patient-access/${PATIENT_ID}`)
       .then((r) => r.json())
       .then((json) => { if (json?.data) setCodes(json.data); })
       .catch(() => {});
@@ -487,7 +487,7 @@ function FamilyAccessCodesCard() {
   }
 
   async function handleRevoke(accessCode) {
-    await fetch(`${API}/api/patient-access/${accessCode}/deactivate`, { method: 'PUT' });
+    await fetch(`/api/patient-access/${accessCode}/deactivate`, { method: 'PUT' });
     setCodes((prev) => prev.map((c) => c.accessCode === accessCode ? { ...c, isActive: false } : c));
   }
 

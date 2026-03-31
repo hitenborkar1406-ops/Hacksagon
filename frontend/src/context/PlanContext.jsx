@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Always use relative path so Vite proxy handles routing in dev,
+// and the deployed frontend hits its own origin in production.
 const SESSION_KEY = 'vitaflow_patient_session';
 
 const PlanContext = createContext(null);
@@ -29,11 +30,16 @@ export function PlanProvider({ children }) {
 
   async function login(accessCode) {
     const code = accessCode.trim().toUpperCase().slice(0, 6);
-    const res = await fetch(`${API}/api/patient-access/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accessCode: code }),
-    });
+    let res;
+    try {
+      res = await fetch('/api/patient-access/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessCode: code }),
+      });
+    } catch {
+      throw new Error('Cannot reach server. Make sure the backend is running.');
+    }
     const json = await res.json();
     if (!json.success) throw new Error(json.error || 'Invalid or expired access code.');
 
