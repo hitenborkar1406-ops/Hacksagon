@@ -93,9 +93,7 @@ export default function Login() {
         <div className="login-logo">
           <div className="login-logo-icon">💉</div>
           <div className="login-logo-text">
-            <div className="login-logo-title">
-              VITA<span style={{ color: 'var(--accent-teal)' }}>FLOW</span>
-            </div>
+            <div className="login-logo-title">IV DRIP SYSTEM</div>
             <div className="login-logo-sub">IoT HEALTHCARE MONITORING</div>
           </div>
         </div>
