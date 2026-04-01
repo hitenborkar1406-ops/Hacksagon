@@ -1,4 +1,4 @@
-*import { io } from 'socket.io-client';
+import { io } from 'socket.io-client';
 
 // In dev: falls back to http://localhost:5000 (direct connection, bypasses Vite proxy)
 // In prod (Netlify/Vercel): VITE_API_URL must be set to the deployed backend URL
