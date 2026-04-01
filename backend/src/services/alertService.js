@@ -1,121 +1,104 @@
-import crypto from 'crypto';
-import mongoose from 'mongoose';
-import Alert from '../models/Alert.js';
-import { _memAlerts } from '../controllers/alertController.js';
-import { emitAlertNew } from '../sockets/index.js';
+import crypto from "crypto";
+import Alert from "../models/Alert.js";
+import { emitAlertNew } from "../sockets/index.js";
 
-// PRD §15.1 thresholds
-const THRESHOLDS = [
-  {
-    type: 'LOW_SPO2_CRITICAL',
-    severity: 'critical',
-    check: (v) => v.spo2 < 90,
-    message: (v) => `Critical: SpO₂ has dropped to ${v.spo2.toFixed(1)}%. Immediate assessment required.`,
-  },
-  {
-    type: 'LOW_SPO2_WARNING',
-    severity: 'warning',
-    check: (v) => v.spo2 >= 90 && v.spo2 <= 93,
-    message: (v) => `Warning: SpO₂ is ${v.spo2.toFixed(1)}%, below normal range. Monitor closely.`,
-  },
-  {
-    type: 'HIGH_HR',
-    severity: 'warning',
-    check: (v) => v.heartRate > 120,
-    message: (v) => `Warning: Tachycardia detected. Heart rate is ${Math.round(v.heartRate)} bpm.`,
-  },
-  {
-    type: 'LOW_HR',
-    severity: 'warning',
-    check: (v) => v.heartRate < 50,
-    message: (v) => `Warning: Bradycardia detected. Heart rate is ${Math.round(v.heartRate)} bpm.`,
-  },
-  {
-    type: 'IV_STOPPED',
-    severity: 'info',
-    check: (v) => v.ivStatus === 'stopped',
-    message: () => 'IV administration has stopped. Monitor patient for response changes.',
-  },
-  {
-    type: 'BACKFLOW',
-    severity: 'critical',
-    check: (v) => v.backflow === true,
-    message: () => 'Critical: Blood backflow detected in IV line. Solenoid valve auto-closed.',
-  },
-  {
-    type: 'IV_LOW',
-    severity: 'warning',
-    check: (v) => v.ivRemaining !== undefined && v.ivRemaining < 50 && v.ivRemaining >= 20,
-    message: (v) => `Warning: IV bag nearly empty — ${Math.round(v.ivRemaining)} mL remaining.`,
-  },
-  {
-    type: 'IV_CRITICAL',
-    severity: 'critical',
-    check: (v) => v.ivRemaining !== undefined && v.ivRemaining < 20,
-    message: (v) => `Critical: IV bag critically low — ${Math.round(v.ivRemaining)} mL remaining. Replace immediately.`,
-  },
-];
+const BUCKET_MS = 300_000;
 
-/**
- * Evaluate thresholds for a vitals + IV reading.
- * Returns new alerts created (may be empty if all deduplicated).
- */
-export async function evaluate(io, vitalsData) {
-  const results = [];
-  const timeBucket = Math.floor(Date.now() / 300_000); // 5-min window
+function alertHash(alertType, patientId, timeBucket) {
+  return crypto
+    .createHash("sha256")
+    .update(`${alertType}${patientId}${timeBucket}`)
+    .digest("hex");
+}
 
-  for (const rule of THRESHOLDS) {
-    if (!rule.check(vitalsData)) continue;
+async function persistIfNew({
+  alertType,
+  severity,
+  message,
+  io,
+  timeBucket,
+  patientId,
+}) {
+  const hash = alertHash(alertType, patientId, timeBucket);
+  const exists = await Alert.findOne({ hash });
+  if (exists) return;
 
-    // PRD §15.2 — SHA-256 deduplication
-    const hash = crypto
-      .createHash('sha256')
-      .update(`${rule.type}:${vitalsData.patientId || 'global'}:${timeBucket}`)
-      .digest('hex');
+  try {
+    const alert = await Alert.create({
+      type: alertType,
+      message,
+      severity,
+      hash,
+      patientId,
+    });
+    emitAlertNew(io, alert);
+  } catch (err) {
+    if (err.code === 11000) return;
+    throw err;
+  }
+}
 
-    try {
-      const isConnected = mongoose.connection.readyState === 1;
-      let existing;
-      if (isConnected) {
-        existing = await Alert.findOne({ hash });
-      } else {
-        existing = _memAlerts.find(a => a.hash === hash);
-      }
-      
-      if (existing) continue; // suppress duplicate
+export async function evaluate(vitals, io) {
+  const timeBucket = Math.floor(Date.now() / BUCKET_MS);
+  const hr = vitals.heartRate;
+  const spo2 = vitals.spo2;
+  const { ivStatus } = vitals;
+  const patientId = vitals.patientId;
+  if (!patientId) return;
 
-      let alert;
-      if (isConnected) {
-        alert = await Alert.create({
-          type: rule.type,
-          severity: rule.severity,
-          message: rule.message(vitalsData),
-          hash,
-          patientId: vitalsData.patientId || null,
-          acknowledged: false,
-        });
-      } else {
-        alert = {
-          _id: `mem_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          type: rule.type,
-          severity: rule.severity,
-          message: rule.message(vitalsData),
-          hash,
-          patientId: vitalsData.patientId || null,
-          acknowledged: false,
-          timestamp: new Date(),
-        };
-        _memAlerts.unshift(alert);
-        if (_memAlerts.length > 200) _memAlerts.splice(200);
-      }
-
-      emitAlertNew(io, alert);
-      results.push(alert);
-    } catch (err) {
-      // duplicate key error means race condition — safe to ignore
-      if (err.code !== 11000) console.error('alertService error:', err.message);
+  if (typeof spo2 === "number") {
+    if (spo2 < 90) {
+      await persistIfNew({
+        alertType: "LOW_SPO2_CRITICAL",
+        severity: "critical",
+        message: `Critical: SpO₂ has dropped to ${spo2}%. Immediate assessment required.`,
+        io,
+        timeBucket,
+        patientId,
+      });
+    } else if (spo2 < 94) {
+      await persistIfNew({
+        alertType: "LOW_SPO2_WARNING",
+        severity: "warning",
+        message: `Warning: SpO₂ is ${spo2}%, below normal range. Monitor closely.`,
+        io,
+        timeBucket,
+        patientId,
+      });
     }
   }
 
-  return results;
+  if (typeof hr === "number") {
+    if (hr > 120) {
+      await persistIfNew({
+        alertType: "HIGH_HR",
+        severity: "warning",
+        message: `Warning: Tachycardia detected. Heart rate is ${hr} bpm.`,
+        io,
+        timeBucket,
+        patientId,
+      });
+    } else if (hr < 50) {
+      await persistIfNew({
+        alertType: "LOW_HR",
+        severity: "warning",
+        message: `Warning: Bradycardia detected. Heart rate is ${hr} bpm.`,
+        io,
+        timeBucket,
+        patientId,
+      });
+    }
+  }
+
+  if (ivStatus === "stopped") {
+    await persistIfNew({
+      alertType: "IV_STOPPED",
+      severity: "info",
+      message:
+        "IV administration has stopped. Monitor patient for response changes.",
+      io,
+      timeBucket,
+      patientId,
+    });
+  }
 }

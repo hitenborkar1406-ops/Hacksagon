@@ -1,51 +1,68 @@
-import { Server } from 'socket.io';
+import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
 
-const CORS_ORIGIN = process.env.SOCKET_CORS_ORIGIN || 'http://localhost:5173';
+function jwtSecret() {
+  return process.env.JWT_SECRET || "dev-only-change-me";
+}
 
 export function setupSockets(httpServer, app) {
+  const socketCors =
+    process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.trim()
+      ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean)
+      : "*";
   const io = new Server(httpServer, {
-    cors: { origin: CORS_ORIGIN, methods: ['GET', 'POST'] },
-    reconnection: true,
+    cors: { origin: socketCors, credentials: true },
   });
 
   app.locals.io = io;
 
-  io.on('connection', (socket) => {
-    console.log(`Client connected: ${socket.id}`);
-    socket.on('disconnect', () => console.log(`Client disconnected: ${socket.id}`));
+  io.use((socket, next) => {
+    const token =
+      socket.handshake.auth?.token || socket.handshake.query?.token;
+    if (!token) return next();
+
+    try {
+      const payload = jwt.verify(token, jwtSecret());
+      socket.data.userId = payload.sub;
+      socket.data.role = payload.role;
+    } catch (_err) {
+      // If token is invalid, keep socket unauthenticated.
+    }
+    return next();
+  });
+
+  io.on("connection", (socket) => {
+    if (socket.data.role === "patient" && socket.data.userId) {
+      socket.join(`patient:${String(socket.data.userId)}`);
+    }
+    if (socket.data.role === "doctor") {
+      socket.join("role:doctor");
+    }
   });
 
   return io;
 }
 
-export function emitVitalsNew(io, data) {
-  if (io) {
-    io.emit('vitals:new', data);       // PRD canonical event name
-    io.emit('vitals_update', data);    // alias for frontend hooks
-  }
+export function emitVitalsNew(io, vitals) {
+  if (!io) return;
+  const patientId = vitals?.patientId;
+  const pid = patientId != null ? String(patientId) : "";
+  if (pid) io.to(`patient:${pid}`).emit("vitals:new", vitals);
+  io.to("role:doctor").emit("vitals:new", vitals);
 }
 
 export function emitAlertNew(io, alert) {
-  if (io) io.emit('alert:new', alert);
+  if (!io) return;
+  const patientId = alert?.patientId;
+  const pid = patientId != null ? String(patientId) : "";
+  if (pid) io.to(`patient:${pid}`).emit("alert:new", alert);
+  io.to("role:doctor").emit("alert:new", alert);
 }
 
-export function emitIVUpdate(io, data) {
-  if (io) {
-    io.emit('iv_update', data);
-    io.emit('iv:update', data);
-  }
-}
-
-export function emitInsightUpdate(io, data) {
-  if (io) io.emit('insight:update', data);
-}
-
-// PRD §11.3 — iv:vision event (AI vision status)
-export function emitIVVision(io, data) {
-  if (io) io.emit('iv:vision', data);
-}
-
-// PRD §11.3 — session:update event
-export function emitSessionUpdate(io, sessionId, vitalsEntry) {
-  if (io) io.emit('session:update', { sessionId, vitalsTimeline: vitalsEntry });
+export function emitInsightUpdate(io, payload) {
+  if (!io) return;
+  const patientId = payload?.patientId;
+  const pid = patientId != null ? String(patientId) : "";
+  if (pid) io.to(`patient:${pid}`).emit("insight:update", payload);
+  io.to("role:doctor").emit("insight:update", payload);
 }

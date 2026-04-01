@@ -1,36 +1,24 @@
-import express from 'express';
-import { listAlerts, resolveAlert, createAlert } from '../controllers/alertController.js';
+import express from "express";
+import authRequired from "../middleware/authRequired.js";
+import { createAlert, listAlerts } from "../controllers/alertController.js";
 
 const router = express.Router();
 
-// GET /api/alerts?patientId=&severity=&resolved=false
-router.get('/', async (req, res) => {
+router.post("/", authRequired, async (req, res) => {
   try {
-    const alerts = await listAlerts(req.query);
-    res.json({ success: true, count: alerts.length, data: alerts });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// POST /api/alerts/:id/resolve
-router.post('/:id/resolve', async (req, res) => {
-  try {
-    const alert = await resolveAlert(req.params.id);
-    if (!alert) return res.status(404).json({ success: false, error: 'Alert not found' });
-    res.json({ success: true, data: alert });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// POST /api/alerts (manual creation — for testing)
-router.post('/', async (req, res) => {
-  try {
-    const alert = await createAlert(req.body, req.app.locals.io);
+    const alert = await createAlert(req);
     res.status(201).json({ success: true, data: alert });
-  } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+router.get("/", authRequired, async (req, res) => {
+  try {
+    const alerts = await listAlerts(req.auth);
+    res.json({ success: true, data: alerts });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

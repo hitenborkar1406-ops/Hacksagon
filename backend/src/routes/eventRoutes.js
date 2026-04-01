@@ -1,23 +1,31 @@
-import express from 'express';
-import { createEvent } from '../controllers/eventController.js';
-import { getLatestInsight } from '../services/drugCurveService.js';
+import express from "express";
+import {
+  createEvent,
+  scheduleDrugCurveCompute,
+} from "../controllers/eventController.js";
+import authRequired from "../middleware/authRequired.js";
 
 const router = express.Router();
 
-// POST /api/events
-router.post('/', async (req, res) => {
+router.post("/", authRequired, async (req, res) => {
   try {
-    const event = await createEvent(req.body, req.app.locals.io);
-    res.status(201).json({ success: true, data: event });
-  } catch (err) {
-    res.status(err.status || 400).json({ success: false, error: err.message });
-  }
-});
+    const role = req.auth?.role;
+    const authUserId = req.auth?.userId;
+    const body = { ...req.body };
 
-// GET /api/insights
-router.get('/insights', async (_req, res) => {
-  const insight = getLatestInsight();
-  res.json({ success: true, data: insight });
+    if (role === "patient") {
+      body.patientId = authUserId;
+    }
+    if (!body.patientId) {
+      return res.status(400).json({ success: false, error: "patientId is required" });
+    }
+
+    const event = await createEvent(body);
+    res.status(201).json({ success: true, data: event });
+    scheduleDrugCurveCompute(event, req.app.locals.io);
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
 });
 
 export default router;

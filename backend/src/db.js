@@ -1,18 +1,42 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
+
+/**
+ * Resolve connection string from env (first non-empty).
+ * Supports common names used with Atlas / hosting providers.
+ */
+function getMongoUri() {
+  const candidates = [
+    process.env.MONGODB_URI,
+    process.env.MONGO_URI,
+    process.env.DATABASE_URL,
+  ].filter(Boolean);
+  return candidates[0] || "";
+}
 
 export default async function connectDB() {
-  const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  const uri = getMongoUri();
 
-  if (!uri) {
-    console.warn('⚠  No MONGODB_URI set — running in in-memory simulation mode (no persistence)');
-    return; // graceful: simulator still runs, no DB writes
+  if (!uri || !String(uri).trim()) {
+    throw new Error(
+      "MongoDB URI missing. Set MONGODB_URI (or MONGO_URI / DATABASE_URL) in backend/.env"
+    );
   }
 
+  const opts = {
+    serverSelectionTimeoutMS: 10_000,
+    maxPoolSize: 10,
+  };
+
   try {
-    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
-    console.log('MongoDB connected to', uri.replace(/\/\/[^@]+@/, '//***@'));
+    await mongoose.connect(uri, opts);
+    const name = mongoose.connection.name || "(default)";
+    console.log(`MongoDB connected (db: ${name})`);
   } catch (err) {
-    console.warn('⚠  MongoDB connection failed — running in simulation-only mode:', err.message);
-    // Non-fatal: app continues without persistence
+    const hint =
+      err?.message?.includes("bad auth") || err?.message?.includes("authentication failed")
+        ? " Check username/password in the URI and Atlas IP access list / network access."
+        : "";
+    console.error("MongoDB connection error:", err.message);
+    throw new Error(`MongoDB connect failed: ${err.message}${hint}`);
   }
 }

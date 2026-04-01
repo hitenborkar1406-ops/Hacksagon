@@ -1,106 +1,153 @@
-import Vitals from '../models/Vitals.js';
-import { emitInsightUpdate } from '../sockets/index.js';
+import Vitals from "../models/Vitals.js";
 
-// In-memory store for latest insight (PRD §10.4 — in-memory for v1.0)
-let latestInsight = null;
+const lastByPatientId = new Map();
 
-export function getLatestInsight() {
-  return latestInsight;
+export function getLastInsight(patientId) {
+  if (!patientId) return null;
+  return lastByPatientId.get(String(patientId)) || null;
 }
 
+function toDate(t) {
+  if (!t) return null;
+  const d = t instanceof Date ? t : new Date(t);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function avg(nums) {
+  if (!nums.length) return null;
+  return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
+function distTo75(hr) {
+  return Math.abs(hr - 75);
+}
+
+const NO_RESPONSE_INSIGHT =
+  "No measurable response to IV administration detected within the observation window.";
+
 /**
- * PRD §8.5 — Drug Impact Curve computation.
- * Called asynchronously after iv_start event. Does NOT block HTTP response.
+ * Deterministic plain-language insight from a drug-curve result (output of compute()).
+ * Never returns undefined.
  */
-export async function computeDrugCurve(io, ivStartTime) {
-  try {
-    const startTs = new Date(ivStartTime);
-
-    // Baseline: vitals in the 10 minutes before IV start
-    const baselineFrom = new Date(startTs.getTime() - 10 * 60_000);
-    const baselineRecords = await Vitals.find({
-      timestamp: { $gte: baselineFrom, $lt: startTs },
-    }).sort({ timestamp: 1 });
-
-    if (!baselineRecords.length) {
-      latestInsight = {
-        ivStartTime: startTs,
-        baseline: null,
-        responseDelayMins: null,
-        improvement: null,
-        stabilisationMins: null,
-        insight: 'No measurable response to IV administration detected within the observation window.',
-        vitalsTimeline: [],
-      };
-      emitInsightUpdate(io, latestInsight);
-      return;
-    }
-
-    // Compute baseline means (PRD FR-D02)
-    const baseline = {
-      heartRate: baselineRecords.reduce((s, r) => s + r.heartRate, 0) / baselineRecords.length,
-      spo2: baselineRecords.reduce((s, r) => s + r.spo2, 0) / baselineRecords.length,
-    };
-
-    // Wait 30 minutes then fetch post-IV vitals
-    const windowMs = 30 * 60_000;
-    await new Promise((resolve) => setTimeout(resolve, windowMs));
-
-    const postRecords = await Vitals.find({
-      timestamp: { $gte: startTs, $lte: new Date(startTs.getTime() + windowMs) },
-    }).sort({ timestamp: 1 });
-
-    const vitalsTimeline = postRecords.map((r) => ({
-      t: (r.timestamp - startTs) / 60_000,
-      heartRate: r.heartRate,
-      spo2: r.spo2,
-    }));
-
-    // Response delay — first reading where spo2 improves ≥2 OR HR moves ≥5 closer to 75 (PRD FR-D04)
-    let responseDelayMins = null;
-    for (const point of vitalsTimeline) {
-      const spo2Improved = point.spo2 - baseline.spo2 >= 2;
-      const hrImproved = Math.abs(point.heartRate - 75) <= Math.abs(baseline.heartRate - 75) - 5;
-      if (spo2Improved || hrImproved) {
-        responseDelayMins = Math.round(point.t * 10) / 10;
-        break;
-      }
-    }
-
-    // Stabilisation — 5 consecutive readings with spo2>93 and HR 55-100 (PRD FR-D06)
-    let stabilisationMins = null;
-    for (let i = 0; i <= vitalsTimeline.length - 5; i++) {
-      const window = vitalsTimeline.slice(i, i + 5);
-      const stable = window.every((p) => p.spo2 > 93 && p.heartRate >= 55 && p.heartRate <= 100);
-      if (stable) {
-        stabilisationMins = Math.round(window[0].t * 10) / 10;
-        break;
-      }
-    }
-
-    // Improvement (PRD FR-D05)
-    const postMeanHr = vitalsTimeline.reduce((s, p) => s + p.heartRate, 0) / (vitalsTimeline.length || 1);
-    const postMeanSpo2 = vitalsTimeline.reduce((s, p) => s + p.spo2, 0) / (vitalsTimeline.length || 1);
-    const improvement = {
-      heartRate: Math.round((postMeanHr - baseline.heartRate) * 10) / 10,
-      spo2: Math.round((postMeanSpo2 - baseline.spo2) * 10) / 10,
-    };
-
-    // Insight string (PRD §8.7)
-    let insight;
-    if (responseDelayMins === null) {
-      insight = 'No measurable response to IV administration detected within the observation window.';
-    } else if (stabilisationMins !== null && stabilisationMins < 20) {
-      insight = `Patient responded within ${responseDelayMins} minutes. Vitals stabilised at ${stabilisationMins} minutes after IV start.`;
-    } else if (stabilisationMins !== null) {
-      insight = `Patient showed initial response at ${responseDelayMins} minutes but required extended time to stabilise (${stabilisationMins} minutes).`;
-    } else {
-      insight = `Response detected at ${responseDelayMins} minutes. Stabilisation not achieved within the 30-minute observation window.`;
-    }
-
-    latestInsight = { ivStartTime: startTs, baseline, responseDelayMins, improvement, stabilisationMins, insight, vitalsTimeline };
-    emitInsightUpdate(io, latestInsight);
-  } catch (err) {
-    console.error('drugCurveService error:', err.message);
+export function generateInsight(curveResult) {
+  if (!curveResult || typeof curveResult !== "object") {
+    return NO_RESPONSE_INSIGHT;
   }
+
+  const xRaw = curveResult.responseDelayMins;
+  const yRaw = curveResult.stabilizationMins;
+
+  if (xRaw == null || Number.isNaN(Number(xRaw))) {
+    return NO_RESPONSE_INSIGHT;
+  }
+
+  const x = Number(xRaw).toFixed(1);
+
+  if (yRaw == null || Number.isNaN(Number(yRaw))) {
+    return `Response detected at ${x} minutes. Stabilisation not achieved within the 30-minute observation window.`;
+  }
+
+  const yNum = Number(yRaw);
+  const y = yNum.toFixed(1);
+
+  if (yNum < 20) {
+    return `Patient responded within ${x} minutes. Vitals stabilised at ${y} minutes after IV start.`;
+  }
+
+  return `Patient showed initial response at ${x} minutes but required extended time to stabilise (${y} minutes).`;
+}
+
+export async function compute(ivStartTime, patientId) {
+  const start = toDate(ivStartTime);
+  if (!start || !patientId) return null;
+
+  const ms10 = 10 * 60 * 1000;
+  const ms30 = 30 * 60 * 1000;
+  const preWindowStart = new Date(start.getTime() - ms10);
+
+  const preRaw = await Vitals.find({
+    patientId,
+    timestamp: { $gte: preWindowStart, $lt: start },
+  })
+    .sort({ timestamp: -1 })
+    .limit(10)
+    .lean();
+
+  let baseline = null;
+  if (preRaw.length > 0) {
+    baseline = {
+      heartRate: avg(preRaw.map((v) => v.heartRate)),
+      spo2: avg(preRaw.map((v) => v.spo2)),
+    };
+  }
+
+  const postEnd = new Date(start.getTime() + ms30);
+  const post = await Vitals.find({
+    patientId,
+    timestamp: { $gt: start, $lte: postEnd },
+  })
+    .sort({ timestamp: 1 })
+    .lean();
+
+  const vitalsTimeline = post.map((v) => ({
+    ...v,
+    timestamp: v.timestamp instanceof Date ? v.timestamp : new Date(v.timestamp),
+  }));
+
+  let responseDelayMins = null;
+  if (baseline && post.length > 0) {
+    const bHr = baseline.heartRate;
+    const bSpo2 = baseline.spo2;
+    const d0 = distTo75(bHr);
+
+    for (const v of post) {
+      const ts = v.timestamp instanceof Date ? v.timestamp : new Date(v.timestamp);
+      const spo2Ok = v.spo2 >= bSpo2 + 2;
+      const d1 = distTo75(v.heartRate);
+      const hrCloser = d0 - d1 >= 5;
+      if (spo2Ok || hrCloser) {
+        responseDelayMins = (ts.getTime() - start.getTime()) / 60000;
+        break;
+      }
+    }
+  }
+
+  let improvement = null;
+  if (baseline && post.length > 0) {
+    const mHr = avg(post.map((v) => v.heartRate));
+    const mSpo2 = avg(post.map((v) => v.spo2));
+    improvement = {
+      heartRate: mHr - baseline.heartRate,
+      spo2: mSpo2 - baseline.spo2,
+    };
+  }
+
+  let stabilizationMins = null;
+  if (post.length >= 5) {
+    for (let i = 0; i <= post.length - 5; i++) {
+      const slice = post.slice(i, i + 5);
+      const ok = slice.every(
+        (v) => v.spo2 > 93 && v.heartRate >= 55 && v.heartRate <= 100
+      );
+      if (ok) {
+        const t0 = slice[0].timestamp;
+        const ts = t0 instanceof Date ? t0 : new Date(t0);
+        stabilizationMins = (ts.getTime() - start.getTime()) / 60000;
+        break;
+      }
+    }
+  }
+
+  const result = {
+    ivStartTime: start.toISOString(),
+    patientId: String(patientId),
+    baseline,
+    responseDelayMins,
+    improvement,
+    stabilizationMins,
+    vitalsTimeline,
+  };
+  result.insight = generateInsight(result);
+  lastByPatientId.set(String(patientId), result);
+  return result;
 }

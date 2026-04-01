@@ -1,14 +1,16 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    email: { type: String, required: true, unique: true, index: true },
     passwordHash: { type: String, required: true },
-    name: { type: String, required: true, trim: true },
-    role: { type: String, enum: ['staff', 'family'], required: true },
-    patientSlug: { type: String, trim: true, default: null },
+    role: { type: String, enum: ["doctor", "patient"], required: true },
+    // For audit + assignment: which doctor created/owns this patient (optional)
+    assignedDoctorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    createdAt: { type: Date, default: Date.now },
   },
-  { versionKey: false, timestamps: true }
+  { versionKey: false }
 );
 
-export default mongoose.model('User', userSchema);
+export default mongoose.model("User", userSchema);
+

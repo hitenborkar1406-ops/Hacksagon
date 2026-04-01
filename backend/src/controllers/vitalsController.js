@@ -1,78 +1,64 @@
-import mongoose from 'mongoose';
-import Vitals from '../models/Vitals.js';
-import { emitVitalsNew } from '../sockets/index.js';
-import { evaluate } from '../services/alertService.js';
-
-/** In-memory vitals ring buffer (simulation mode) */
-const _memVitals = [];
-const MEM_LIMIT = 500;
-
-function isMongoConnected() {
-  return mongoose.connection.readyState === 1;
-}
-
-function makeMockVital(data) {
-  return {
-    _id: `mem_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-    heartRate: data.heartRate,
-    spo2: data.spo2,
-    ivStatus: data.ivStatus,
-    patientId: data.patientId || null,
-    timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
-  };
-}
+import mongoose from "mongoose";
+import Vitals from "../models/Vitals.js";
+import { emitVitalsNew } from "../sockets/index.js";
+import * as alertService from "../services/alertService.js";
 
 export async function createVitals(req) {
-  const { heartRate, spo2, ivStatus, timestamp, patientId } = req.body;
+  // RBAC: patient can only create vitals for themselves
+  const role = req.auth?.role;
+  const authUserId = req.auth?.userId;
 
-  // Basic validation (PRD FR-V02, FR-V03, FR-V04)
-  if (heartRate === undefined || spo2 === undefined || !ivStatus) {
-    throw Object.assign(new Error('heartRate, spo2, and ivStatus are required'), { status: 422 });
+  const body = { ...req.body };
+  if (role === "patient") {
+    body.patientId = authUserId;
   }
-  if (typeof heartRate !== 'number' || heartRate < 0 || heartRate > 300) {
-    throw Object.assign(new Error('heartRate must be a number between 0 and 300'), { status: 422 });
-  }
-  if (typeof spo2 !== 'number' || spo2 < 0 || spo2 > 100) {
-    throw Object.assign(new Error('spo2 must be a number between 0 and 100'), { status: 422 });
-  }
-  if (!['running', 'stopped'].includes(ivStatus)) {
-    throw Object.assign(new Error('ivStatus must be "running" or "stopped"'), { status: 422 });
+  if (!body.patientId) {
+    throw new Error("patientId is required");
   }
 
-  if (!isMongoConnected()) {
-    const vitals = makeMockVital({ heartRate, spo2, ivStatus, timestamp, patientId });
-    _memVitals.unshift(vitals);
-    if (_memVitals.length > MEM_LIMIT) _memVitals.splice(MEM_LIMIT);
-    emitVitalsNew(req.app.locals.io, vitals);
-    evaluate(req.app.locals.io, { ...vitals, patientId }).catch(() => {});
-    return vitals;
-  }
-
-  const vitals = await Vitals.create({ heartRate, spo2, ivStatus, timestamp: timestamp ? new Date(timestamp) : new Date(), patientId });
+  const vitals = await Vitals.create(body);
   emitVitalsNew(req.app.locals.io, vitals);
-  // Async alert evaluation (non-blocking)
-  evaluate(req.app.locals.io, { ...vitals.toObject(), patientId }).catch(() => {});
+  await alertService.evaluate(vitals, req.app.locals.io);
   return vitals;
 }
 
-export async function getLatestVitals(patientId) {
-  if (!isMongoConnected()) {
-    const filtered = patientId ? _memVitals.filter(v => String(v.patientId) === String(patientId)) : _memVitals;
-    return filtered[0] || null;
-  }
-  const filter = patientId ? { patientId } : {};
-  return Vitals.findOne(filter).sort({ timestamp: -1 });
+export async function getLatestVitals(auth) {
+  const query =
+    auth?.role === "patient" ? { patientId: auth.userId } : {};
+
+  const latest = await Vitals.findOne(query).sort({ timestamp: -1 });
+  return latest;
 }
 
-export async function getVitalsHistory(patientId, limitQuery) {
+export async function getVitalsHistory(auth, limitQuery) {
   const parsedLimit = Number.parseInt(limitQuery, 10);
-  const limit = Number.isNaN(parsedLimit) ? 100 : Math.max(1, Math.min(parsedLimit, 1000));
+  const limit = Number.isNaN(parsedLimit)
+    ? 100
+    : Math.max(1, Math.min(parsedLimit, 100));
 
-  if (!isMongoConnected()) {
-    const filtered = patientId ? _memVitals.filter(v => String(v.patientId) === String(patientId)) : _memVitals;
-    return filtered.slice(0, limit);
+  const query =
+    auth?.role === "patient" ? { patientId: auth.userId } : {};
+
+  const history = await Vitals.find(query).sort({ timestamp: -1 }).limit(limit);
+  return history;
+}
+
+/** GET /api/vitals/:patientId — same scope as GET /api/patient/:id/history (frontend alias). */
+export async function getVitalsHistoryForPatient(auth, patientId, limitQuery) {
+  if (!patientId) {
+    throw new Error("patientId is required");
+  }
+  if (!mongoose.Types.ObjectId.isValid(patientId)) {
+    throw new Error("Invalid patient id");
+  }
+  if (auth?.role === "patient" && String(patientId) !== String(auth.userId)) {
+    throw new Error("Forbidden");
   }
 
-  const filter = patientId ? { patientId } : {};
-  return Vitals.find(filter).sort({ timestamp: -1 }).limit(limit);
+  const parsedLimit = Number.parseInt(limitQuery, 10);
+  const limit = Number.isNaN(parsedLimit)
+    ? 100
+    : Math.max(1, Math.min(parsedLimit, 100));
+
+  return Vitals.find({ patientId }).sort({ timestamp: -1 }).limit(limit);
 }

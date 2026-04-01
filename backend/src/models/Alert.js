@@ -1,16 +1,23 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const alertSchema = new mongoose.Schema(
   {
-    patientId: { type: String, index: true },
     type: { type: String, required: true },
     message: { type: String, required: true },
-    severity: { type: String, enum: ['info', 'warning', 'critical'], required: true },
-    acknowledged: { type: Boolean, default: false, index: true },
-    hash: { type: String, unique: true },
+    severity: {
+      type: String,
+      enum: ["info", "warning", "critical"],
+      required: true,
+    },
+    acknowledged: { type: Boolean, default: false },
+    hash: { type: String },
+    // RBAC: alert belongs to exactly one patient
+    patientId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     timestamp: { type: Date, default: Date.now },
   },
   { versionKey: false }
 );
 
-export default mongoose.model('Alert', alertSchema);
+alertSchema.index({ hash: 1 }, { unique: true, sparse: true });
+
+export default mongoose.model("Alert", alertSchema);
